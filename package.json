@@ -1,5 +1,5 @@
 {
-  "name": "@modusoperandi/licit-enhanced-table-figure",
+  "name": "@modusoperandi/licit-contrib-plugin-block-control",
   "version": "1.0.0",
   "license": "MIT",
   "type": "module",
@@ -9,7 +9,7 @@
   "types": "index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MO-Movia/licit-enhanced-table-figure.git"
+    "url": "git+https://github.com/MO-Movia/licit-contrib-plugin-block-control.git"
   },
   "scripts": {
     "clean": "rm -rf dist/ bin/ && rm -f modusoperandi-licit-enhanced-table-figure-*.*.*.tgz",
