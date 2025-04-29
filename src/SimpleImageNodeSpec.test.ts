@@ -1,4 +1,4 @@
-import { getBaseAttrs, getAttrsSimple, SimpleImageNodeSpec } from './simpleImageNodeSpec';
+import { getBaseAttrs, getAttrsSimple, SimpleImageNodeSpec } from './SimpleImageNodeSpec';
 
 describe('getBaseAttrs', () => {
     test('extracts all attributes and styles correctly', () => {

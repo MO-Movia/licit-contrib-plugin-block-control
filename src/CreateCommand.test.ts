@@ -1,5 +1,5 @@
 import { EditorState, Transaction } from 'prosemirror-state';
-import { createCommand } from './createCommand';
+import { createCommand } from './CreateCommand';
 import { Transform } from 'prosemirror-transform';
 
 describe('createCommand', () => {

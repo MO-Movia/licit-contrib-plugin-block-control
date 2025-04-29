@@ -21,11 +21,12 @@
     "test": "jest --coverage",
     "debug": "node --debug-brk --inspect ./node_modules/.bin/jest -i",
     "ci:bom": "cyclonedx-npm --ignore-npm-errors --short-PURLs --output-format XML --output-file dist/bom.xml",
-    "ci:build": "tsc --build && copyfiles --up 1 \"src/**/*.css\" dist && copyfiles --up 1 \"src/assets/**\" dist && copyfiles --up 1 \"src/fonts/**\" dist && copyfiles package.json dist"
+    "ci:build": "tsc --build && copyfiles --up 1 \"src/**/*.css\" dist && copyfiles --up 1 \"src/assets/**\" dist && copyfiles --up 1 \"src/fonts/**\" dist && copyfiles package.json LICENSE README.md dist",
+    "verify": "npm run lint -- --fix && npm run ci:build && npm run test:coverage && echo 'All Tests Passed!'"
   },
   "peerDependencies": {
-     "@modusoperandi/licit-doc-attrs-step": "^1.0.3",
-      "@modusoperandi/licit-ui-commands": "^1.0.0"
+    "@modusoperandi/licit-doc-attrs-step": "^1.0.3",
+    "@modusoperandi/licit-ui-commands": "^1.0.0"
   },
   "devDependencies": {
     "@cyclonedx/cyclonedx-npm": "^1.11.0",
