@@ -91,7 +91,7 @@ describe('SimpleImageNodeSpec', () => {
             width: 100,
             height: 50,
             fitToParent: 0,
-            smpleImg: 'true',
+            simpleImg: 'true',
         };
         const node = { attrs };
         const result = SimpleImageNodeSpec.toDOM(node as any);

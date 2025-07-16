@@ -62,7 +62,6 @@ export class EnhancedTableFigure extends Plugin {
       '[exposure] Insert Enhanced Table-Figure': [
         {
           ' Table': new EnhancedTableCommands('table'),
-          ' Insert image by URL': new ImageFromURLCommand(),
           ' Insert image from computer': new ImageUploadCommand()
         },
       ],
