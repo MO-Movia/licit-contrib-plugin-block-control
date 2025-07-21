@@ -13,7 +13,6 @@ import {
   SIMPLE_IMAGE, ENHANCED_TABLE_FIGURE_NOTES
 } from './Constants';
 // import './styles.css';
-import ImageFromURLCommand from './ImageFromURLCommand';
 import { SimpleImageNodeSpec } from './SimpleImageNodeSpec';
 import { ImageUploadCommand } from './ImageUploadCommand';
 import { EnhancedTableFigureView } from './EnhancedTableFigureView';
