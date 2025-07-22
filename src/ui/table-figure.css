@@ -18,6 +18,8 @@
 
 .enhanced-table-figure-capco {
   padding: 5px;
+  font-size: 18px;
+  color: green;
 }
 
 /* Style for the Add Notes button inside the control */
@@ -80,11 +82,12 @@
   transition: opacity 0.2s ease;
 }
 
-.has-hover-handle:hover .handle-hidden-on-hover {
+.prosemirror-editor-wrapper:not(.readOnly)
+  .has-hover-handle:hover
+  .handle-hidden-on-hover {
   opacity: 1;
   pointer-events: auto;
 }
-
 /* Style for the Add Notes button */
 .enhanced-table-figure-add-notes {
   font-size: 10px;

@@ -1,4 +1,4 @@
-import { getBaseAttrs, getAttrsSimple, SimpleImageNodeSpec } from './simpleImageNodeSpec';
+import { getBaseAttrs, getAttrsSimple, SimpleImageNodeSpec } from './SimpleImageNodeSpec';
 
 describe('getBaseAttrs', () => {
     test('extracts all attributes and styles correctly', () => {
@@ -20,6 +20,7 @@ describe('getBaseAttrs', () => {
             height: 100,
             fitToParent: 1,
             simpleImg: 'true',
+            capco: null,
         });
     });
 
@@ -77,7 +78,7 @@ describe('SimpleImageNodeSpec', () => {
         expect(SimpleImageNodeSpec.inline).toBe(true);
         expect(SimpleImageNodeSpec.draggable).toBe(true);
         expect(SimpleImageNodeSpec.attrs.alt.default).toBe('');
-        expect(SimpleImageNodeSpec.attrs.smpleImg.default).toBe('true');
+        expect(SimpleImageNodeSpec.attrs.simpleImg.default).toBe('true');
         expect(SimpleImageNodeSpec.parseDOM.length).toBe(1);
         expect(SimpleImageNodeSpec.parseDOM[0].tag).toBe('img[src]');
         expect(typeof SimpleImageNodeSpec.parseDOM[0].getAttrs).toBe('function');
@@ -91,7 +92,7 @@ describe('SimpleImageNodeSpec', () => {
             width: 100,
             height: 50,
             fitToParent: 0,
-            smpleImg: 'true',
+            simpleImg: 'true',
         };
         const node = { attrs };
         const result = SimpleImageNodeSpec.toDOM(node as any);

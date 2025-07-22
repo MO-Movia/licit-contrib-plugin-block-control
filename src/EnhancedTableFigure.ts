@@ -13,7 +13,6 @@ import {
   SIMPLE_IMAGE, ENHANCED_TABLE_FIGURE_NOTES
 } from './Constants';
 // import './styles.css';
-import ImageFromURLCommand from './ImageFromURLCommand';
 import { SimpleImageNodeSpec } from './SimpleImageNodeSpec';
 import { ImageUploadCommand } from './ImageUploadCommand';
 import { EnhancedTableFigureView } from './EnhancedTableFigureView';
@@ -62,7 +61,6 @@ export class EnhancedTableFigure extends Plugin {
       '[exposure] Insert Enhanced Table-Figure': [
         {
           ' Table': new EnhancedTableCommands('table'),
-          ' Insert image by URL': new ImageFromURLCommand(),
           ' Insert image from computer': new ImageUploadCommand()
         },
       ],

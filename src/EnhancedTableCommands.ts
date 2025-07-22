@@ -13,9 +13,9 @@ export class EnhancedTableCommands extends UICommand {
     super();
     this._nodeType = type;
   }
- executeCustom(_state: EditorState, tr: Transform, _from: number, _to: number): Transform {
-  return tr;
-}
+  executeCustom(_state: EditorState, tr: Transform, _from: number, _to: number): Transform {
+    return tr;
+  }
   isEnabled = (state: EditorState, view?: EditorView): boolean => {
     return this.__isEnabled(state, view);
   };
@@ -89,7 +89,7 @@ export class EnhancedTableCommands extends UICommand {
 
     // Create a blank CAPCO (footer) node.
     const capcoType = schema.nodes.enhanced_table_figure_capco;
-    const capcoNode = capcoType.create({}, schema.text('Footer'));
+    const capcoNode = capcoType.create({}, schema.text(' '));
 
     // Assemble the composite in the order: [body, (notes optional), capco]
     const content = Fragment.fromArray([bodyNode, capcoNode]);
