@@ -82,11 +82,6 @@
   transition: opacity 0.2s ease;
 }
 
-/* .has-hover-handle:hover .handle-hidden-on-hover {
-  opacity: 1;
-  pointer-events: auto;
-} */
-
 .prosemirror-editor-wrapper:not(.readOnly)
   .has-hover-handle:hover
   .handle-hidden-on-hover {
