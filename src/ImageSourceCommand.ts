@@ -36,7 +36,7 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
     src: imageUrl,
     width: '100%',
     alt: altText,
-    smpleImg: 'true',
+    simpleImg: 'true',
   };
   const imageNode = imageNodeType.create(imageAttrs);
   const bodyNode = bodyType.create({}, imageNode);
@@ -44,7 +44,7 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
   // No notes by default.
   // Create a blank CAPCO (footer) node.
   const capcoType = schema.nodes.enhanced_table_figure_capco;
-  const capcoNode = capcoType.create({}, schema.text('Footer'));
+  const capcoNode = capcoType.create({}, schema.text(' '));
 
   // Assemble the composite in the order: [body, capco]
   const content = Fragment.fromArray([bodyNode, capcoNode]);

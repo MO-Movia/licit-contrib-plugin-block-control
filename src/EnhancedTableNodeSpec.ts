@@ -20,6 +20,9 @@ export const enhancedTableFigureBodyNodeSpec: NodeSpec = {
 export const enhancedTableFigureNotesNodeSpec: NodeSpec = {
   group: 'block',
   content: 'inline*',
+  attrs: {
+    styleName: { default: 'Normal' },
+  },
   parseDOM: [{ tag: "div[data-type='enhanced-table-figure-notes']" }],
   toDOM() {
     return [

@@ -18,6 +18,7 @@ export function getBaseAttrs(dom: HTMLElement) {
     alt: dom.getAttribute('alt') || '',
     height: parseInt(height, 10) || null,
     src: dom.getAttribute('src'),
+    capco: dom.getAttribute('capco') || null,
     title: dom.getAttribute('title') || '',
     width: parseInt(width, 10) || null,
     fitToParent,
@@ -44,8 +45,9 @@ export const SimpleImageNodeSpec: NodeSpec = {
     src: { default: null },
     title: { default: '' },
     width: { default: null },
+    capco: { default: null },
     fitToParent: { default: 0 },
-    smpleImg: { default: 'true' }
+    simpleImg: { default: 'true' }
   },
   group: 'inline',
   draggable: true,
