@@ -42,7 +42,6 @@ export class EnhancedTableFigure extends Plugin {
     const nodes = schema.spec.nodes.append({
       [ENHANCED_TABLE_FIGURE]: enhancedTableFigureNodeSpec,
       [ENHANCED_TABLE_FIGURE_BODY]: enhancedTableFigureBodyNodeSpec,
-      [SIMPLE_IMAGE]: SimpleImageNodeSpec,
       [ENHANCED_TABLE_FIGURE_NOTES]: enhancedTableFigureNotesNodeSpec,
       [ENHANCED_TABLE_FIGURE_CAPCO]: enhancedTableFigureCapcoNodeSpec,
 

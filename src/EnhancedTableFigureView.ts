@@ -128,7 +128,7 @@ export class EnhancedTableFigureView implements NodeView {
     this.dom.setAttribute('data-id', node.attrs.id);
     this.dom.setAttribute('data-figure-type', node.attrs.figureType);
     this.updateNotesTrigger();
-    return true;
+    return false;
   }
 
   updateNotesTrigger() {

@@ -28,7 +28,7 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
 
   // Create the body that contains an image.
   const bodyType = schema.nodes.enhanced_table_figure_body;
-  const imageNodeType = schema.nodes['simple_image'];
+  const imageNodeType = schema.nodes['image'];
   if (!imageNodeType) {
     return tr;
   }
@@ -36,9 +36,9 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
     src: imageUrl,
     width: '100%',
     alt: altText,
-    simpleImg: 'true',
+    simpleImg: 'false',
   };
-  const imageNode = imageNodeType.create(imageAttrs);
+  const imageNode = imageNodeType.create(imageAttrs, null);
   const bodyNode = bodyType.create({}, imageNode);
 
   // No notes by default.
@@ -55,14 +55,11 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
   tr = tr.insert(from, figureNode);
 
   // Insert a new paragraph after the figure.
-  const paragraphType = schema.nodes.paragraph;
-  if (paragraphType) {
-    const paragraphNode = paragraphType.createAndFill();
-    if (paragraphNode) {
-      const posAfter = from + figureNode.nodeSize;
-      tr = tr.insert(posAfter, paragraphNode);
-      tr = tr.setSelection(TextSelection.create(tr.doc, posAfter + 1));
-    }
+  const paragraphNode = schema.nodes.paragraph.createAndFill();
+  if (paragraphNode) {
+    const after = from + figureNode.nodeSize;
+    tr = tr.insert(after, paragraphNode);
+    tr = tr.setSelection(TextSelection.create(tr.doc, after + 1));
   }
   return tr;
 }
