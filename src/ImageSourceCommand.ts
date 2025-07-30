@@ -34,9 +34,9 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
   }
   const imageAttrs = {
     src: imageUrl,
-    width: '100%',
     alt: altText,
     simpleImg: 'false',
+    cropData: null,
   };
   const imageNode = imageNodeType.create(imageAttrs, null);
   const bodyNode = bodyType.create({}, imageNode);

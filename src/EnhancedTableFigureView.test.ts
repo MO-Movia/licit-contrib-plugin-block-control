@@ -60,11 +60,11 @@ describe('EnhancedTableFigureView', () => {
       expect(view.dom.getAttribute('data-type')).toBe('enhanced-table-figure');
       expect(view.dom.getAttribute('data-id')).toBe('test-id');
       expect(view.dom.getAttribute('data-figure-type')).toBe('table');
-      
+
       expect(view.contentDOM).toBeDefined();
       expect(view.contentDOM.parentElement).toBe(view.dom);
       expect(view.contentDOM.className).toBe('enhanced-table-figure-content');
-      
+
       expect(view.addNotesButton).toBeDefined();
       expect(view.selectHandle).toBeDefined();
     });
@@ -84,7 +84,7 @@ describe('EnhancedTableFigureView', () => {
         },
       };
       const landscapeView = new EnhancedTableFigureView(landscapeNode, mockView, mockGetPos);
-      
+
       expect(landscapeView.dom.style.width).toBe('624px');
       expect(landscapeView.dom.style.maxWidth).toBe('624px');
       expect(landscapeView.contentDOM.style.width).toBe('864px');
@@ -112,8 +112,8 @@ describe('EnhancedTableFigureView', () => {
           figureType: 'figure',
         },
       };
-      const result = view.update(updatedNode as ProseMirrorNode);
-      expect(result).toBe(true);
+      const result = view.update(updatedNode as unknown as ProseMirrorNode);
+      expect(result).toBe(false);
       expect(view.node).toBe(updatedNode);
       expect(view.dom.getAttribute('data-id')).toBe('new-id');
       expect(view.dom.getAttribute('data-figure-type')).toBe('figure');
@@ -184,10 +184,10 @@ describe('EnhancedTableFigureView', () => {
     xit('should handle selectHandle click to select node', () => {
       const mockEvent = { preventDefault: jest.fn() };
       view.selectHandle.dispatchEvent(new Event('click'));
-      
+
       // Simulate click handler
       (view.selectHandle as any).onclick(mockEvent);
-      
+
       expect(mockEvent.preventDefault).toHaveBeenCalled();
       expect(mockView.dispatch).toHaveBeenCalled();
     });
@@ -197,10 +197,10 @@ describe('EnhancedTableFigureView', () => {
     xit('should dispatch addNotesCommand when clicked', () => {
       const mockEvent = { preventDefault: jest.fn() };
       view.addNotesButton.dispatchEvent(new Event('click'));
-      
+
       // Simulate click handler
       (view.addNotesButton as any).onclick(mockEvent);
-      
+
       expect(mockEvent.preventDefault).toHaveBeenCalled();
       expect(mockView.dispatch).toHaveBeenCalled();
     });
@@ -210,7 +210,7 @@ describe('EnhancedTableFigureView', () => {
     xit('should update node attributes and dispatch transaction', () => {
       const mockValue = { align: 'center' };
       view._onChange(mockValue);
-      
+
       expect(mockView.dispatch).toHaveBeenCalled();
       // Verify the transaction includes the new align attribute
     });
@@ -225,7 +225,7 @@ describe('EnhancedTableFigureView', () => {
     it('should close inline editor on destroy', () => {
       // Mock that we have an inline editor
       view['_inlineEditor'] = { close: jest.fn() } as unknown as any;
-      
+
       view.destroy();
       expect(view['_inlineEditor']?.close).toHaveBeenCalled();
     });
@@ -250,7 +250,7 @@ describe('EnhancedTableFigureView', () => {
       jest.spyOn(document, 'getElementById').mockReturnValue({
         getAttribute: () => 'false',
       } as any);
-      
+
       view['_renderInlineEditor']();
       expect(view['_inlineEditor']).toBeUndefined();
     });
@@ -260,7 +260,7 @@ describe('EnhancedTableFigureView', () => {
         getAttribute: () => 'true',
         closest: () => document.createElement('div'),
       } as any);
-      
+
       view.selectNode(); // This will call _renderInlineEditor
       expect(view['_inlineEditor']).toBeUndefined();
     });

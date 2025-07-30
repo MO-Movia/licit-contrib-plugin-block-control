@@ -15,10 +15,8 @@ export class EnhancedTableFigureView implements NodeView {
   contentDOM: HTMLElement;
   addNotesButton: HTMLButtonElement;
   selectHandle: HTMLElement;
-  // maximizeButton: HTMLElement;
   _inlineEditor?: PopUpHandle;
   _id = uuid();
-  // private _resizeRoot: Root | null = null;
 
   constructor(node: ProseMirrorNode, view: EditorView, getPos: () => number) {
     this.node = node;
