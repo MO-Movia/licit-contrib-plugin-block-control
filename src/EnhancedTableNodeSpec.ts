@@ -49,7 +49,7 @@ export const enhancedTableFigureCapcoNodeSpec: NodeSpec = {
     {
       tag: "div[data-type='enhanced-table-figure-capco']",
       getAttrs(dom) {
-        return { form: dom.getAttribute('data-form') || 'long' };
+        return { form: dom.getAttribute('data-form') || 'long', capco: dom.getAttribute('data-capco') || null };
       },
     },
   ],
@@ -58,7 +58,8 @@ export const enhancedTableFigureCapcoNodeSpec: NodeSpec = {
       'div',
       {
         'data-type': 'enhanced-table-figure-capco',
-        'data-form': node.attrs.form,
+        'data-form': node.attrs?.form,
+        'data-capco': node.attrs?.capco,
         class: 'enhanced-table-figure-capco',
       },
       0,
