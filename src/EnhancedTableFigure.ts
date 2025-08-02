@@ -10,10 +10,9 @@ import {
 } from './EnhancedTableNodeSpec';
 import {
   ENHANCED_TABLE_FIGURE_BODY, ENHANCED_TABLE_FIGURE, ENHANCED_TABLE_FIGURE_CAPCO,
-  SIMPLE_IMAGE, ENHANCED_TABLE_FIGURE_NOTES
+  ENHANCED_TABLE_FIGURE_NOTES
 } from './Constants';
 // import './styles.css';
-import { SimpleImageNodeSpec } from './SimpleImageNodeSpec';
 import { ImageUploadCommand } from './ImageUploadCommand';
 import { EnhancedTableFigureView } from './EnhancedTableFigureView';
 export class EnhancedTableFigure extends Plugin {
@@ -42,7 +41,6 @@ export class EnhancedTableFigure extends Plugin {
     const nodes = schema.spec.nodes.append({
       [ENHANCED_TABLE_FIGURE]: enhancedTableFigureNodeSpec,
       [ENHANCED_TABLE_FIGURE_BODY]: enhancedTableFigureBodyNodeSpec,
-      [SIMPLE_IMAGE]: SimpleImageNodeSpec,
       [ENHANCED_TABLE_FIGURE_NOTES]: enhancedTableFigureNotesNodeSpec,
       [ENHANCED_TABLE_FIGURE_CAPCO]: enhancedTableFigureCapcoNodeSpec,
 

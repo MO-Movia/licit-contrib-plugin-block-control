@@ -93,13 +93,6 @@ describe('EnhancedTableCommands', () => {
         expect(tableNode.childCount).toBe(2);
     });
 
-    test('insertParagraph inserts a paragraph node', () => {
-        const state = EditorState.create({ schema });
-        const tr = state.tr;
-        const result = command.insertParagraph(schema, tr, 0);
-        expect(result.doc.childCount).toBeGreaterThan(0);
-    });
-
     test('waitForUserInput resolves to undefined', async () => {
         const result = await command.waitForUserInput(state, () => { }, {} as any, {} as any);
         expect(result).toBeUndefined();

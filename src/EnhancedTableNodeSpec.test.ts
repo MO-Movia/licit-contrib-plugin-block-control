@@ -4,7 +4,7 @@ import {
   enhancedTableFigureCapcoNodeSpec,
   enhancedTableFigureNodeSpec,
 } from './EnhancedTableNodeSpec';
-const mockNode = { attrs: {} } as any;
+const mockNode = {attrs: {}} as any;
 describe('Enhanced Table Figure Node Specs', () => {
   describe('enhancedTableFigureBodyNodeSpec', () => {
     it('returns correct DOM output', () => {
@@ -20,7 +20,9 @@ describe('Enhanced Table Figure Node Specs', () => {
     });
 
     it('has correct parseDOM tag', () => {
-      expect(enhancedTableFigureBodyNodeSpec.parseDOM![0].tag).toBe("div[data-type='enhanced-table-figure-body']");
+      expect(enhancedTableFigureBodyNodeSpec.parseDOM![0].tag).toBe(
+        "div[data-type='enhanced-table-figure-body']"
+      );
     });
   });
 
@@ -38,13 +40,15 @@ describe('Enhanced Table Figure Node Specs', () => {
     });
 
     it('has correct parseDOM tag', () => {
-      expect(enhancedTableFigureNotesNodeSpec.parseDOM![0].tag).toBe("div[data-type='enhanced-table-figure-notes']");
+      expect(enhancedTableFigureNotesNodeSpec.parseDOM![0].tag).toBe(
+        "div[data-type='enhanced-table-figure-notes']"
+      );
     });
   });
 
   describe('enhancedTableFigureCapcoNodeSpec', () => {
     it('returns correct DOM output with attrs', () => {
-      const mockNode = { attrs: { form: 'short' } };
+      const mockNode = {attrs: {form: 'short'}};
       const result = enhancedTableFigureCapcoNodeSpec.toDOM!(mockNode as any);
       expect(result).toEqual([
         'div',
@@ -63,10 +67,10 @@ describe('Enhanced Table Figure Node Specs', () => {
 
       const dom = document.createElement('div');
       dom.setAttribute('data-form', 'short');
-      expect(tag.getAttrs!(dom)).toEqual({ form: 'short' });
+      expect(tag.getAttrs!(dom)).toEqual({capco: null, form: 'short'});
 
       const dom2 = document.createElement('div');
-      expect(tag.getAttrs!(dom2)).toEqual({ form: 'long' });
+      expect(tag.getAttrs!(dom2)).toEqual({capco: null, form: 'long'});
     });
   });
 
