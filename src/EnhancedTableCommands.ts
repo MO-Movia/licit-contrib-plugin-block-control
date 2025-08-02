@@ -139,18 +139,6 @@ export class EnhancedTableCommands extends UICommand {
     return tableNode;
   }
 
-
-  insertParagraph(schema, tr, prevNodeSize) {
-    const paragraph = schema.nodes[PARAGRAPH];
-    const textNode = schema.text(' ');
-    const { from, to } = tr.selection;
-    if (from !== to) {
-      return tr;
-    }
-    const paragraphNode = paragraph.create({}, textNode, null);
-    tr = tr.insert(from + prevNodeSize, Fragment.from(paragraphNode));
-    return tr;
-  }
 }
 
 export function addNotesCommand(tr, schema, pos) {
