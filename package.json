@@ -1,6 +1,6 @@
 {
   "name": "@modusoperandi/licit-contrib-plugin-block-control",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "MIT",
   "type": "module",
   "subversion": "1",
@@ -65,7 +65,7 @@
     "text-encoding": "^0.7.0",
     "ts-jest": "^29.0.3",
     "ts-node": "^10.9.1",
-    "typescript": "5.8.3",
+    "typescript": "^5.8.3",
     "url": "^0.11.0"
   },
   "overrides": {
