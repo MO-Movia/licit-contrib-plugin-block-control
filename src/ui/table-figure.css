@@ -19,7 +19,8 @@
 .enhanced-table-figure-capco {
   padding: 5px;
   font-size: 18px;
-  color: green;
+  color: #006E3A; 
+  text-transform: uppercase;
 }
 
 /* Style for the Add Notes button inside the control */
