@@ -143,54 +143,7 @@ describe('ImageSourceCommand', () => {
     });
   });
 
-  describe('executeWithUserInput', () => {
-    xit('should hide placeholder and insert image when inputs provided', () => {
-      const result = command.executeWithUserInput(
-        mockState,
-        mockDispatch,
-        mockView,
-        { src: 'test.jpg' }
-      );
-      
-      expect(hideCursorPlaceholder).toHaveBeenCalledWith(mockView.state);
-      expect(mockDispatch).toHaveBeenCalled();
-      expect(mockView.focus).toHaveBeenCalled();
-      expect(result).toBe(false);
-    });
-
-    xit('should handle empty inputs gracefully', () => {
-      const result = command.executeWithUserInput(
-        mockState,
-        mockDispatch,
-        mockView,
-        null
-      );
-      
-      expect(hideCursorPlaceholder).toHaveBeenCalledWith(mockView.state);
-      expect(mockDispatch).toHaveBeenCalled();
-      expect(result).toBe(false);
-    });
-
-    xit('should work without view', () => {
-      const result = command.executeWithUserInput(
-        mockState,
-        mockDispatch,
-        null,
-        { src: 'test.jpg' }
-      );
-      
-      expect(result).toBe(false);
-    });
-  });
-
   describe('other methods', () => {
-    xit('cancel should close popup if exists', () => {
-      const mockClose = jest.fn();
-      command['_popUp'] = { close: mockClose };
-      command.cancel();
-      expect(mockClose).toHaveBeenCalled();
-    });
-
     it('renderLabel should return null', () => {
       expect(command.renderLabel()).toBeNull();
     });

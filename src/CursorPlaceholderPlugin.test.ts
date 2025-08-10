@@ -51,28 +51,6 @@ describe('CursorPlaceholderPlugin', () => {
     jest.clearAllMocks();
   });
 
-  describe('CursorPlaceholderPlugin class', () => {
-    xit('should create a singleton instance', () => {
-      const plugin1 = new CursorPlaceholderPlugin();
-      const plugin2 = new CursorPlaceholderPlugin();
-        expect(plugin1).toBeDefined();
-        expect(plugin2).toBeDefined()
-    });
-
-    xit('should initialize with empty decoration set', () => {
-      const plugin = new CursorPlaceholderPlugin();
-      const state = plugin.spec.state.init();
-      expect(state).toEqual(DecorationSet.empty);
-    });
-
-  
-    xit('should provide decorations through props', () => {
-      const plugin = new CursorPlaceholderPlugin();
-      const decorations = plugin.spec.props.decorations(mockEditorState);
-      expect(decorations).toBeDefined();
-    });
-  });
-
   describe('specFinder', () => {
     it('should return true when spec matches placeholder ID', () => {
       const result = specFinder({ id: { name: 'CursorPlaceholderPlugin' } });
