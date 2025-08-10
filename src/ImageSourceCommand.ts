@@ -70,7 +70,6 @@ export class ImageSourceCommand extends UICommand {
 
   getEditor(): typeof React.Component {
     return undefined;
-    // throw new Error('Not implemented');
   }
 
   isEnabled = (state: EditorState, view: EditorView): boolean => {
