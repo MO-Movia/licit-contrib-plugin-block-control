@@ -9,7 +9,7 @@
   "types": "index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MO-Movia/licit-contrib-plugin-block-control.git"
+    "url": "https://github.com/MO-Movia/licit-contrib-plugin-block-control"
   },
   "scripts": {
     "clean": "rm -rf dist/ bin/ && rm -f modusoperandi-licit-enhanced-table-figure-*.*.*.tgz",
