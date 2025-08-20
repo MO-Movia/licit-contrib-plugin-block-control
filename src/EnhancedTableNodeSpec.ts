@@ -19,16 +19,21 @@ export const enhancedTableFigureBodyNodeSpec: NodeSpec = {
 // Optional Notes spec.
 export const enhancedTableFigureNotesNodeSpec: NodeSpec = {
   group: 'block',
-  content: 'inline*',
+  content: 'paragraph+',
   attrs: {
     styleName: { default: 'Normal' },
   },
-  parseDOM: [{ tag: "div[data-type='enhanced-table-figure-notes']" }],
-  toDOM() {
+  parseDOM: [{ tag: "div[data-type='enhanced-table-figure-notes']",
+      getAttrs: (dom: HTMLElement) => ({
+        styleName: dom.getAttribute('data-styleName') || 'Normal',
+      }),
+   }],
+  toDOM(node) {
     return [
       'div',
       {
         'data-type': 'enhanced-table-figure-notes',
+        'data-styleName': node.attrs.styleName,
         class: 'enhanced-table-figure-notes',
       },
       0,
