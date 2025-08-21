@@ -4,7 +4,9 @@ import {
   enhancedTableFigureCapcoNodeSpec,
   enhancedTableFigureNodeSpec,
 } from './EnhancedTableNodeSpec';
-const mockNode = {attrs: {}} as any;
+
+const mockNode = { attrs: {} } as any;
+
 describe('Enhanced Table Figure Node Specs', () => {
   describe('enhancedTableFigureBodyNodeSpec', () => {
     it('returns correct DOM output', () => {
@@ -24,29 +26,12 @@ describe('Enhanced Table Figure Node Specs', () => {
         "div[data-type='enhanced-table-figure-body']"
       );
     });
-  });
 
-  describe('enhancedTableFigureNotesNodeSpec', () => {
-    it('returns correct DOM output', () => {
-      const result = enhancedTableFigureNotesNodeSpec.toDOM!(mockNode);
-      expect(result).toEqual([
-        'div',
-        {
-          'data-type': 'enhanced-table-figure-notes',
-          class: 'enhanced-table-figure-notes',
-        },
-        0,
-      ]);
-    });
-
-    it('has correct parseDOM tag', () => {
-      expect(enhancedTableFigureNotesNodeSpec.parseDOM![0].tag).toBe(
-        "div[data-type='enhanced-table-figure-notes']"
-      );
+    it('has correct content expression', () => {
+      expect(enhancedTableFigureBodyNodeSpec.content).toBe('block+');
     });
   });
 
-  describe('enhancedTableFigureCapcoNodeSpec', () => {
     it('returns correct DOM output with attrs', () => {
       const mockNode = {attrs: {form: 'short'}};
       const result = enhancedTableFigureCapcoNodeSpec.toDOM!(mockNode as any);
@@ -61,16 +46,66 @@ describe('Enhanced Table Figure Node Specs', () => {
       ]);
     });
 
-    it('getAttrs returns correct form or default', () => {
-      const tag = enhancedTableFigureCapcoNodeSpec.parseDOM![0];
-      expect(tag.tag).toBe("div[data-type='enhanced-table-figure-capco']");
+    it('returns correct DOM output with custom styleName', () => {
+      const result = enhancedTableFigureNotesNodeSpec.toDOM!({
+        attrs: { styleName: 'CustomStyle' },
+      } as any);
+      expect(result).toEqual([
+        'div',
+        {
+          'data-type': 'enhanced-table-figure-notes',
+          'data-styleName': 'CustomStyle',
+          class: 'enhanced-table-figure-notes',
+        },
+        0,
+      ]);
+    });
 
+    it('getAttrs falls back to Normal when no styleName', () => {
       const dom = document.createElement('div');
-      dom.setAttribute('data-form', 'short');
-      expect(tag.getAttrs!(dom)).toEqual({capco: null, form: 'short'});
+      const tag = enhancedTableFigureNotesNodeSpec.parseDOM![0];
+      expect(tag.getAttrs!(dom)).toEqual({ styleName: 'Normal' });
+    });
 
-      const dom2 = document.createElement('div');
-      expect(tag.getAttrs!(dom2)).toEqual({capco: null, form: 'long'});
+    it('getAttrs reads styleName when provided', () => {
+      const dom = document.createElement('div');
+      dom.setAttribute('data-styleName', 'Heading1');
+      const tag = enhancedTableFigureNotesNodeSpec.parseDOM![0];
+      expect(tag.getAttrs!(dom)).toEqual({ styleName: 'Heading1' });
+    });
+  });
+
+  describe('enhancedTableFigureCapcoNodeSpec', () => {
+    it('returns correct DOM output with attrs', () => {
+      const mockNode = { attrs: { form: 'short', capco: 'SECRET' } };
+      const result = enhancedTableFigureCapcoNodeSpec.toDOM!(mockNode as any);
+      expect(result).toEqual([
+        'div',
+        {
+          'data-type': 'enhanced-table-figure-capco',
+          'data-form': 'short',
+          'data-capco': 'SECRET',
+          class: 'enhanced-table-figure-capco',
+        },
+        0,
+      ]);
+    });
+
+    it('getAttrs returns correct capco', () => {
+      const tag = enhancedTableFigureCapcoNodeSpec.parseDOM![0];
+      const dom = document.createElement('div');
+      dom.setAttribute('data-form', 'long');
+      dom.setAttribute('data-capco', 'CONFIDENTIAL');
+      expect(tag.getAttrs!(dom)).toEqual({
+        form: 'long',
+        capco: 'CONFIDENTIAL',
+      });
+    });
+
+    it('getAttrs falls back to defaults', () => {
+      const tag = enhancedTableFigureCapcoNodeSpec.parseDOM![0];
+      const dom = document.createElement('div');
+      expect(tag.getAttrs!(dom)).toEqual({ form: 'long', capco: null });
     });
   });
 
@@ -152,5 +187,10 @@ describe('Enhanced Table Figure Node Specs', () => {
         maximized: false,
       });
     });
+
+    it('includes content expression', () => {
+      expect(enhancedTableFigureNodeSpec.content).toBe(
+        'enhanced_table_figure_body enhanced_table_figure_notes? enhanced_table_figure_capco'
+      );
+    });
   });
-});

@@ -180,45 +180,6 @@ describe('EnhancedTableFigureView', () => {
       expect(view.dom.classList.contains('ProseMirror-selectednode')).toBe(false);
       expect(view.dom.getAttribute('data-active')).toBeDefined();
     });
-
-    xit('should handle selectHandle click to select node', () => {
-      const mockEvent = { preventDefault: jest.fn() };
-      view.selectHandle.dispatchEvent(new Event('click'));
-
-      // Simulate click handler
-      (view.selectHandle as any).onclick(mockEvent);
-
-      expect(mockEvent.preventDefault).toHaveBeenCalled();
-      expect(mockView.dispatch).toHaveBeenCalled();
-    });
-  });
-
-  describe('add notes button', () => {
-    xit('should dispatch addNotesCommand when clicked', () => {
-      const mockEvent = { preventDefault: jest.fn() };
-      view.addNotesButton.dispatchEvent(new Event('click'));
-
-      // Simulate click handler
-      (view.addNotesButton as any).onclick(mockEvent);
-
-      expect(mockEvent.preventDefault).toHaveBeenCalled();
-      expect(mockView.dispatch).toHaveBeenCalled();
-    });
-  });
-
-  describe('_onChange', () => {
-    xit('should update node attributes and dispatch transaction', () => {
-      const mockValue = { align: 'center' };
-      view._onChange(mockValue);
-
-      expect(mockView.dispatch).toHaveBeenCalled();
-      // Verify the transaction includes the new align attribute
-    });
-
-    xit('should handle null align value', () => {
-      view._onChange(undefined);
-      expect(mockView.dispatch).toHaveBeenCalled();
-    });
   });
 
   describe('destroy', () => {
@@ -234,14 +195,6 @@ describe('EnhancedTableFigureView', () => {
   describe('stopEvent', () => {
     it('should always return false', () => {
       expect(view.stopEvent(new Event('click'))).toBe(false);
-    });
-  });
-
-  describe('onResizeEnd', () => {
-    xit('should dispatch transaction with new dimensions', () => {
-      view.onResizeEnd(500, 300);
-      expect(mockView.dispatch).toHaveBeenCalled();
-      // Verify the transaction includes the new width/height
     });
   });
 

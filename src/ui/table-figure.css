@@ -1,13 +1,4 @@
-/*** EnhancedTable Figure ***/
-
-/* .enhanced-table-figure {
-  
-  margin: 0 auto;
-} */
-
 .enhanced-table-figure.landscape {
-  /* For landscape, you can use a different width, perhaps full width or a preset landscape width */
-  /*width: var(--czi-doc-width-us-letter-landscape) - var(--czi-doc-padding-default);*/
   margin: 0 auto;
 }
 
@@ -87,13 +78,4 @@
   .handle-hidden-on-hover {
   opacity: 1;
   pointer-events: auto;
-}
-/* Style for the Add Notes button */
-.enhanced-table-figure-add-notes {
-  font-size: 10px;
-  padding: 2px 5px;
-  cursor: pointer;
-  background: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 3px;
 }

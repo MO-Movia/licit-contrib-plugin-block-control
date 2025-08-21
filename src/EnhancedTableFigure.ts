@@ -12,7 +12,6 @@ import {
   ENHANCED_TABLE_FIGURE_BODY, ENHANCED_TABLE_FIGURE, ENHANCED_TABLE_FIGURE_CAPCO,
   ENHANCED_TABLE_FIGURE_NOTES
 } from './Constants';
-// import './styles.css';
 import { ImageUploadCommand } from './ImageUploadCommand';
 import { EnhancedTableFigureView } from './EnhancedTableFigureView';
 export class EnhancedTableFigure extends Plugin {
