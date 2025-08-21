@@ -114,7 +114,7 @@ export class EnhancedTableFigureView implements NodeView {
   };
 
   update(node: ProseMirrorNode): boolean {
-    if (node.type !== this.node.type) {
+    if (node.type === this.node.type) {
       const isLandscape = node.attrs.orientation === 'landscape';
       this.dom.style.overflowX = 'auto';
       this.dom.style.width = `${6.5 * 96}px`;
