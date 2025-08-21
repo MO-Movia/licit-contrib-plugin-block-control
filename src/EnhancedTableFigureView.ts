@@ -114,18 +114,19 @@ export class EnhancedTableFigureView implements NodeView {
   };
 
   update(node: ProseMirrorNode): boolean {
-    if (node.type !== this.node.type) return false;
-    const isLandscape = node.attrs.orientation === 'landscape';
-    this.dom.style.overflowX = 'auto';
-    this.dom.style.width = `${6.5 * 96}px`;
-    this.dom.style.maxWidth = `${6.5 * 96}px`;
-    this.contentDOM.style.width = isLandscape ? `${9 * 96}px` : '100%';
+    if (node.type === this.node.type) {
+      const isLandscape = node.attrs.orientation === 'landscape';
+      this.dom.style.overflowX = 'auto';
+      this.dom.style.width = `${6.5 * 96}px`;
+      this.dom.style.maxWidth = `${6.5 * 96}px`;
+      this.contentDOM.style.width = isLandscape ? `${9 * 96}px` : '100%';
 
-    //end
-    this.node = node;
-    this.dom.setAttribute('data-id', node.attrs.id);
-    this.dom.setAttribute('data-figure-type', node.attrs.figureType);
-    this.updateNotesTrigger();
+      //end
+      this.node = node;
+      this.dom.setAttribute('data-id', node.attrs.id);
+      this.dom.setAttribute('data-figure-type', node.attrs.figureType);
+      this.updateNotesTrigger();
+    }
     return false;
   }
 

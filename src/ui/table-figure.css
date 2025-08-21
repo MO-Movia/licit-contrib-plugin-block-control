@@ -79,12 +79,3 @@
   opacity: 1;
   pointer-events: auto;
 }
-/* Style for the Add Notes button */
-.enhanced-table-figure-add-notes {
-  font-size: 10px;
-  padding: 2px 5px;
-  cursor: pointer;
-  background: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-}
