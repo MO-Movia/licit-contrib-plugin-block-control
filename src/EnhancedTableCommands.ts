@@ -148,6 +148,11 @@ export function addNotesCommand(tr, schema, pos) {
   // Check if notes already exist.
   let notesExists = false;
   const children = [];
+  const paragraph = schema.nodes.paragraph.create(
+    {},
+    schema.text('\u200B') // optional placeholder
+  );
+
   node.forEach((child) => {
     children.push(child);
     if (child.type.name === ENHANCED_TABLE_FIGURE_NOTES) {
@@ -158,7 +163,7 @@ export function addNotesCommand(tr, schema, pos) {
 
   // Create a blank notes node (with a zero-width space placeholder).
   const notesType = schema.nodes.enhanced_table_figure_notes;
-  const notesNode = notesType.create({}, schema.text('\u200B'));
+  const notesNode = notesType.create({}, paragraph);
 
   // Insert the notes node after the body.
   const newChildren = [];
