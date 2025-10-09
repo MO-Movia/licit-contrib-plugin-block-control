@@ -150,4 +150,8 @@ export class ImageSourceCommand extends UICommand {
   executeCustom(_state: EditorState, tr: Transform): Transform {
     return tr;
   }
+
+  executeCustomStyleForTable(state: EditorState, tr: Transform): Transform {
+    return tr;
+  }
 }
