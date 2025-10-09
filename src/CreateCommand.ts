@@ -65,7 +65,7 @@ export function createCommand(execute: ExecuteCall): UICommand {
     executeCustom(_state: EditorState, tr: Transform): Transform {
       return tr;
     }
-    executeCustomStyleForTable(state: EditorState, tr: Transform): Transform {
+    executeCustomStyleForTable(_state: EditorState, tr: Transform): Transform {
     return tr;
   }
   }
