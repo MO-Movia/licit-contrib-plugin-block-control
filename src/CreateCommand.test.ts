@@ -72,4 +72,9 @@ describe('createCommand', () => {
         expect(cmd.cancel()).toBe(null);
     });
 
+    it('executeCustomStyleForTable should return the transaction', () => {
+         const cmd = createCommand(mockExecute);
+        const mockTr = {} as Transaction;
+        expect(cmd.executeCustomStyleForTable(state, mockTr,0,0)).toBe(mockTr);
+    });
 });
