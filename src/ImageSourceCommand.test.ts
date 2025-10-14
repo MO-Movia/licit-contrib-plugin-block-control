@@ -71,7 +71,7 @@ describe('insertEnhancedImageFigure', () => {
     expect(result).toBe(mockTr);
   });
 
- 
+
 });
 
 describe('ImageSourceCommand', () => {
@@ -87,16 +87,16 @@ describe('ImageSourceCommand', () => {
       schema: {},
       tr: {},
     } as unknown as EditorState;
-    
+
     mockView = {
       state: mockState,
       dispatch: jest.fn(),
       focus: jest.fn(),
       runtime: {},
     } as unknown as EditorView;
-    
+
     mockDispatch = jest.fn();
-    
+
     // Reset mocks
     (showCursorPlaceholder as jest.Mock).mockReturnValue({});
     (hideCursorPlaceholder as jest.Mock).mockReturnValue({});
@@ -130,14 +130,14 @@ describe('ImageSourceCommand', () => {
 
     it('should show cursor placeholder and create popup', async () => {
       const promise = command.waitForUserInput(mockState, mockDispatch, mockView);
-      
+
       expect(showCursorPlaceholder).toHaveBeenCalledWith(mockState);
       expect(createPopUp).toHaveBeenCalled();
-      
+
       // Simulate popup close
       const onClose = (createPopUp as jest.Mock).mock.calls[0][2].onClose;
       onClose('test-value');
-      
+
       const result = await promise;
       expect(result).toBe('test-value');
     });
@@ -155,6 +155,11 @@ describe('ImageSourceCommand', () => {
     it('executeCustom should return the transaction', () => {
       const mockTr = {} as Transaction;
       expect(command.executeCustom(mockState, mockTr)).toBe(mockTr);
+    });
+
+    it('executeCustomStyleForTable should return the transaction', () => {
+      const mockTr = {} as Transaction;
+      expect(command.executeCustomStyleForTable(mockState, mockTr, 0, 0)).toBe(mockTr);
     });
   });
 });
