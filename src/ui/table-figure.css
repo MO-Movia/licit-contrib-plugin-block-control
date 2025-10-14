@@ -79,3 +79,7 @@
   opacity: 1;
   pointer-events: auto;
 }
+
+.ProseMirror[contenteditable="false"] .enhanced-table-figure-capco {
+  display: none !important;
+}

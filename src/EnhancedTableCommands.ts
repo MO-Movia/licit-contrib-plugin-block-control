@@ -16,6 +16,11 @@ export class EnhancedTableCommands extends UICommand {
   executeCustom(_state: EditorState, tr: Transform, _from: number, _to: number): Transform {
     return tr;
   }
+
+  executeCustomStyleForTable(_state: EditorState, tr: Transform, _from: number, _to: number): Transform {
+    return tr;
+  }
+
   isEnabled = (state: EditorState, view?: EditorView): boolean => {
     return this.__isEnabled(state, view);
   };

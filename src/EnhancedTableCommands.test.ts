@@ -66,6 +66,11 @@ describe('EnhancedTableCommands', () => {
         expect(command.isEnabled(state)).toBe(true);
     });
 
+    test('executeCustomStyleForTable returns tr', () => {
+        const mockTr = {} as Transaction;
+        expect(command.executeCustomStyleForTable(state, mockTr, 0, 0)).toBe(mockTr);
+    });
+
     test('execute inserts enhanced table figure', () => {
         const dispatch = jest.fn();
         const view = { focus: jest.fn() } as any;
