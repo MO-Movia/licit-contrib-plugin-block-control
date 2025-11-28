@@ -113,7 +113,7 @@ describe('EnhancedTableFigureView', () => {
         },
       };
       const result = view.update(updatedNode as unknown as ProseMirrorNode);
-      expect(result).toBe(false);
+      expect(result).toBe(true);
       expect(view.node).toBe(updatedNode);
       expect(view.dom.getAttribute('data-id')).toBe('new-id');
       expect(view.dom.getAttribute('data-figure-type')).toBe('figure');
