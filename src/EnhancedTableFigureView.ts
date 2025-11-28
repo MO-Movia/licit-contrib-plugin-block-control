@@ -114,20 +114,42 @@ export class EnhancedTableFigureView implements NodeView {
   };
 
   update(node: ProseMirrorNode): boolean {
-    if (node.type === this.node.type) {
-      const isLandscape = node.attrs.orientation === 'landscape';
-      this.dom.style.overflowX = 'auto';
-      this.dom.style.width = `${6.5 * 96}px`;
-      this.dom.style.maxWidth = `${6.5 * 96}px`;
-      this.contentDOM.style.width = isLandscape ? `${9 * 96}px` : '100%';
-
-      //end
-      this.node = node;
-      this.dom.setAttribute('data-id', node.attrs.id);
-      this.dom.setAttribute('data-figure-type', node.attrs.figureType);
-      this.updateNotesTrigger();
+    // Only accept updates for the same node type
+    if (node.type !== this.node.type) {
+      return false;
     }
-    return false;
+
+    // Update orientation-related styles
+    const isLandscape = node.attrs.orientation === 'landscape';
+    this.dom.style.overflowX = 'auto';
+    this.dom.style.width = `${6.5 * 96}px`;
+    this.dom.style.maxWidth = `${6.5 * 96}px`;
+    this.contentDOM.style.width = isLandscape ? `${9 * 96}px` : '100%';
+
+    // Update the node reference and attributes
+    this.node = node;
+    this.dom.setAttribute('data-id', node.attrs.id);
+    this.dom.setAttribute('data-figure-type', node.attrs.figureType);
+    this.dom.setAttribute('data-orientation', node.attrs.orientation);
+    this.dom.setAttribute('data-maximized', node.attrs.maximized ? 'true' : 'false');
+
+    // Update class names while preserving important classes
+    const baseClasses = ['enhanced-table-figure'];
+    if (node.attrs.orientation === 'landscape') baseClasses.push('landscape');
+    if (node.attrs.maximized) baseClasses.push('maximized');
+    if (this.dom.classList.contains('ProseMirror-selectednode')) {
+      baseClasses.push('ProseMirror-selectednode');
+    }
+    if (this.dom.classList.contains('has-hover-handle')) {
+      baseClasses.push('has-hover-handle');
+    }
+    this.dom.className = baseClasses.join(' ');
+
+    this.updateNotesTrigger();
+
+    // Return true to indicate we've handled the update
+    // ProseMirror will update the contentDOM children automatically
+    return true;
   }
 
   updateNotesTrigger() {
