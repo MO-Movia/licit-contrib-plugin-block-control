@@ -5,8 +5,7 @@ export const ENHANCED_TABLE_FIGURE = 'enhanced_table_figure';
 export const IMAGE = 'material-symbols-outlined';
 export const PARAGRAPH = 'paragraph';
 export const TABLE = 'table';
-export const TABLE_CELL = 'table_cell';
-export const TABLE_ROW = 'table_row';
+export const TABLE_CELL = 'tableCell';
+export const TABLE_ROW = 'tableRow';
 export const FP_WIDTH = '100%';
 export const FP_HEIGHT = '100%';
-
