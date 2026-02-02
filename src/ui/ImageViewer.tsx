@@ -10,28 +10,38 @@ export const ImageViewer: React.FC<Props> = ({
     onClose,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
+        useEffect(() => {
         const container = containerRef.current;
-        if (!container) return;
+        if (!container) {
+            return;
+        }
 
-        // Mount NodeView DOM inside React
-        (nodeViewDom.getElementsByClassName('enhanced-table-figure-content')[0] as HTMLElement).style.width = '864px';
+        (nodeViewDom.getElementsByClassName(
+            'enhanced-table-figure-content'
+        )[0] as HTMLElement).style.width = '864px';
+
         (nodeViewDom as HTMLElement).style.width = 'auto';
         (nodeViewDom as HTMLElement).style.maxWidth = '1024px';
-        (nodeViewDom.getElementsByClassName('molm-czi-image-view-body-img-clip')[0]?.firstElementChild as HTMLElement).style.width = 'auto';
-        (nodeViewDom.getElementsByClassName('molm-czi-image-view-body-img-clip')[0]?.firstElementChild as HTMLElement).style.height = 'auto';
-        (nodeViewDom.getElementsByClassName('molm-czi-image-view-body-img')[0] as HTMLElement).style.width = '854px';
-        (nodeViewDom.getElementsByClassName('molm-czi-image-view-body-img')[0] as HTMLElement).style.height = 'auto';
+
+        const imgClip = nodeViewDom.getElementsByClassName(
+            'molm-czi-image-view-body-img-clip'
+        )[0]?.firstElementChild as HTMLElement | undefined;
+
+        if (imgClip) {
+            imgClip.style.width = 'auto';
+            imgClip.style.height = 'auto';
+        }
+
+        const img = nodeViewDom.getElementsByClassName(
+            'molm-czi-image-view-body-img'
+        )[0] as HTMLElement;
+
+        img.style.width = '854px';
+        img.style.height = 'auto';
 
         container.appendChild(nodeViewDom);
-        // eslint-disable-next-line consistent-return
-        return () => {
-            // Safety cleanup – do nothing here
-            // Restoration handled by NodeView
-        };
     }, [nodeViewDom]);
-
-    return (
+        return (
         <div className="image-viewer-overlay">
             <div
                 className="image-viewer-wrapper"
