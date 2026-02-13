@@ -4,6 +4,7 @@ import { NodeSelection, TextSelection } from 'prosemirror-state';
 import { addNotesCommand } from './EnhancedTableCommands';
 import { atAnchorBottomCenter, createPopUp, PopUpHandle, uuid } from '@modusoperandi/licit-ui-commands';
 import { ImageInlineEditor } from './ui/ImageInlineEditor';
+import { ImageViewer } from './ui/ImageViewer';
 
 const FRAMESET_BODY_CLASSNAME = 'czi-editor-frame-body';
 
@@ -15,9 +16,10 @@ export class EnhancedTableFigureView implements NodeView {
   contentDOM: HTMLElement;
   addNotesButton: HTMLButtonElement;
   selectHandle: HTMLElement;
+  maximizeButton: HTMLElement;
   _inlineEditor?: PopUpHandle;
   _id = uuid();
-
+  private _popUp = null;
   constructor(node: ProseMirrorNode, view: EditorView, getPos: () => number) {
     this.node = node;
     this.view = view;
@@ -35,22 +37,15 @@ export class EnhancedTableFigureView implements NodeView {
 
     // contentDOM
     this.contentDOM = document.createElement('div');
-
-    const isLandscape = this.node.attrs.orientation === 'landscape';
-    const portraitWidthPx = 6.5 * 96; // 624
-    const landscapeWidthPx = 9 * 96; // 864
-
+    const portraitWidthPx = 6.5 * 96; // 624 (864/9 inches)
     // This is the scrollable container
     this.dom.style.width = `${portraitWidthPx}px`;
     this.dom.style.maxWidth = `${portraitWidthPx}px`;
-    this.dom.style.overflowX = 'auto'; // <-- Enable horizontal scrolling here
-    this.dom.style.overflowY = 'visible';
-
-    // This is the wider content (table holder)
-    this.contentDOM.style.width = isLandscape ? `${landscapeWidthPx}px` : '100%';
+    this.contentDOM.style.width = '100%';
 
     // end
     this.contentDOM.className = 'enhanced-table-figure-content';
+    this.contentDOM.setAttribute('data-orientation', node.attrs.orientation);
     this.dom.appendChild(this.contentDOM);
 
     // Add Notes button
@@ -81,9 +76,11 @@ export class EnhancedTableFigureView implements NodeView {
       right: '0px',
       cursor: 'pointer',
       padding: '2px 4px',
-      background: '#ccc',
+      background: 'transparent',
       borderRadius: '3px',
       zIndex: '10',
+      fontSize: '12px',
+      fontWeight: 600
     });
     this.selectHandle.addEventListener('click', (e) => {
       e.preventDefault();
@@ -98,6 +95,45 @@ export class EnhancedTableFigureView implements NodeView {
     this.selectHandle.classList.add('handle-hidden-on-hover');
     this.dom.classList.add('has-hover-handle');
     this.dom.appendChild(this.selectHandle);
+    // Maximize button
+    if (node.attrs.figureType !== 'table') {
+      this.maximizeButton = document.createElement('div');
+      this.maximizeButton.className = 'enhanced-table-figure-maximize-button';
+      this.maximizeButton.textContent = '⛶';
+      Object.assign(this.maximizeButton.style, {
+        position: 'absolute',
+        top: '0px',
+        right: '23px',
+        cursor: 'pointer',
+        padding: '2px 4px',
+        background: 'transparent',
+        borderRadius: '3px',
+        zIndex: '10',
+        fontSize: '12px',
+        fontWeight: 600
+      });
+      this.maximizeButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        const viewPops = {
+          nodeViewDom: this.dom.cloneNode(true) as HTMLElement,
+          onClose: (): void => {
+            if (this._popUp) {
+              this._popUp.close();
+              this._popUp = null;
+            }
+          },
+        };
+
+        this._popUp = createPopUp(ImageViewer, viewPops, {
+          autoDismiss: false,
+          modal: false,
+          anchor: view.dom.parentElement,
+        });
+
+      });
+      this.maximizeButton.classList.add('handle-hidden-on-hover');
+      this.dom.appendChild(this.maximizeButton);
+    }
     this.updateNotesTrigger();
   }
 
@@ -118,14 +154,7 @@ export class EnhancedTableFigureView implements NodeView {
     if (node.type !== this.node.type) {
       return false;
     }
-
-    // Update orientation-related styles
-    const isLandscape = node.attrs.orientation === 'landscape';
-    this.dom.style.overflowX = 'auto';
-    this.dom.style.width = `${6.5 * 96}px`;
-    this.dom.style.maxWidth = `${6.5 * 96}px`;
-    this.contentDOM.style.width = isLandscape ? `${9 * 96}px` : '100%';
-
+    this.contentDOM.style.width = '100%';
     // Update the node reference and attributes
     this.node = node;
     this.dom.setAttribute('data-id', node.attrs.id);

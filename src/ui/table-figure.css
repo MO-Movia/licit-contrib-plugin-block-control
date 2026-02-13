@@ -85,3 +85,18 @@
   .enhanced-table-figure-capco {
   display: none !important;
 }
+
+.image-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.image-viewer-content {
+  background: white;
+  padding: 16px;
+}
