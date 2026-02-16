@@ -87,7 +87,7 @@ describe('EnhancedTableFigureView', () => {
 
       expect(landscapeView.dom.style.width).toBe('624px');
       expect(landscapeView.dom.style.maxWidth).toBe('624px');
-      expect(landscapeView.contentDOM.style.width).toBe('864px');
+      expect(landscapeView.contentDOM.style.width).toBe('100%');
     });
   });
 
@@ -128,7 +128,7 @@ describe('EnhancedTableFigureView', () => {
         },
       };
       view.update(landscapeNode as ProseMirrorNode);
-      expect(view.contentDOM.style.width).toBe('864px');
+      expect(view.contentDOM.style.width).toBe('100%');
     });
   });
 
