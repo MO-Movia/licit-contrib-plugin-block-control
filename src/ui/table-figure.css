@@ -4,13 +4,18 @@
 
 .enhanced-table-figure-notes {
   padding: 5px;
-  border: 1px solid #333;
+  border-left: 0.5px solid black;
+  border-right: 0.5px solid black;
+  border-bottom: 0.5px solid black;
 }
 
 .enhanced-table-figure-capco {
   padding: 5px;
   font-size: 18px;
   color: green;
+  border-left: 0.5px solid black;
+  border-right: 0.5px solid black;
+  border-bottom: 0.5px solid black;
 }
 
 /* Style for the Add Notes button inside the control */
@@ -27,12 +32,20 @@
 .enhanced-table-figure {
   padding: 0;
   margin: 0;
-  border: 2px solid black;
+  /* border-right: 1px solid black; */
   /* Default width: use portrait width or a fixed value; for example: */
   width: 100%;
   /* adjust as needed for your document's portrait width */
   overflow-x: auto;
   /* allow horizontal scrolling if content exceeds width */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.enhanced-table-figure::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 /* When maximized, span the full viewport width */
@@ -73,19 +86,25 @@
   transition: opacity 0.2s ease;
 }
 
-.prosemirror-editor-wrapper:not(.readOnly)
-  .has-hover-handle:hover
-  .handle-hidden-on-hover {
+.prosemirror-editor-wrapper:not(.readOnly) .has-hover-handle:hover .handle-hidden-on-hover {
   opacity: 1;
   pointer-events: auto;
 }
 
-.ProseMirror[contenteditable="false"]
-  .enhanced-table-figure[data-figure-type="figure"]
-  .enhanced-table-figure-capco {
-  display: none !important;
+.ProseMirror[contenteditable="true"] .has-hover-handle:hover .handle-hidden-on-hover {
+  opacity: 1;
+  pointer-events: auto;
 }
 
+.prosemirror-editor-wrapper.readOnly .enhanced-table-figure .enhanced-table-figure-maximize-button,
+.ProseMirror[contenteditable="false"] .enhanced-table-figure .enhanced-table-figure-maximize-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ProseMirror[contenteditable="false"] .enhanced-table-figure[data-figure-type="figure"] .enhanced-table-figure-capco {
+  display: none !important;
+}
 .image-viewer-overlay {
   position: fixed;
   inset: 0;

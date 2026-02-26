@@ -7,6 +7,7 @@ import { ImageInlineEditor } from './ui/ImageInlineEditor';
 import { ImageViewer } from './ui/ImageViewer';
 
 const FRAMESET_BODY_CLASSNAME = 'czi-editor-frame-body';
+const NOTES_CLASSNAME = 'enhanced-table-figure-notes';
 
 export class EnhancedTableFigureView implements NodeView {
   node: ProseMirrorNode;
@@ -29,9 +30,9 @@ export class EnhancedTableFigureView implements NodeView {
     this.dom = document.createElement('div');
     this.dom.setAttribute('id', this._id);
     this.dom.className = 'enhanced-table-figure';
-    this.dom.setAttribute('data-type', 'enhanced-table-figure');
-    this.dom.setAttribute('data-id', node.attrs.id);
-    this.dom.setAttribute('data-figure-type', node.attrs.figureType);
+    this.dom.dataset.type = 'enhanced-table-figure';
+    this.dom.dataset.id = node.attrs.id;
+    this.dom.dataset.figureType = node.attrs.figureType;
     this.dom.style.position = 'relative';
     this.dom.style.overflow = 'visible';
 
@@ -45,7 +46,7 @@ export class EnhancedTableFigureView implements NodeView {
 
     // end
     this.contentDOM.className = 'enhanced-table-figure-content';
-    this.contentDOM.setAttribute('data-orientation', node.attrs.orientation);
+    this.contentDOM.dataset.orientation = node.attrs.orientation;
     this.dom.appendChild(this.contentDOM);
 
     // Add Notes button
@@ -69,7 +70,7 @@ export class EnhancedTableFigureView implements NodeView {
     // Selection handle
     this.selectHandle = document.createElement('div');
     this.selectHandle.className = 'enhanced-table-figure-select-handle';
-    this.selectHandle.textContent = '☰';
+    this.selectHandle.textContent = '\u2630';
     Object.assign(this.selectHandle.style, {
       position: 'absolute',
       top: '0px',
@@ -96,44 +97,47 @@ export class EnhancedTableFigureView implements NodeView {
     this.dom.classList.add('has-hover-handle');
     this.dom.appendChild(this.selectHandle);
     // Maximize button
-    if (node.attrs.figureType !== 'table') {
-      this.maximizeButton = document.createElement('div');
-      this.maximizeButton.className = 'enhanced-table-figure-maximize-button';
-      this.maximizeButton.textContent = '⛶';
-      Object.assign(this.maximizeButton.style, {
-        position: 'absolute',
-        top: '0px',
-        right: '23px',
-        cursor: 'pointer',
-        padding: '2px 4px',
-        background: 'transparent',
-        borderRadius: '3px',
-        zIndex: '10',
-        fontSize: '12px',
-        fontWeight: 600
-      });
-      this.maximizeButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        const viewPops = {
-          nodeViewDom: this.dom.cloneNode(true) as HTMLElement,
-          onClose: (): void => {
-            if (this._popUp) {
-              this._popUp.close();
-              this._popUp = null;
-            }
-          },
-        };
+    this.maximizeButton = document.createElement('div');
+    this.maximizeButton.className = 'enhanced-table-figure-maximize-button';
+    this.maximizeButton.textContent = '\u26f6';
+    Object.assign(this.maximizeButton.style, {
+      position: 'absolute',
+      top: '0px',
+      right: '23px',
+      cursor: 'pointer',
+      padding: '2px 4px',
+      background: 'transparent',
+      borderRadius: '3px',
+      zIndex: '10',
+      fontSize: '12px',
+      fontWeight: 600
+    });
+    this.maximizeButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      const popupNodeViewDom = this.dom.cloneNode(true) as HTMLElement;
+      popupNodeViewDom.classList.remove('ProseMirror-selectednode');
+      this.copyNotesStylesToPopupClone(popupNodeViewDom);
 
-        this._popUp = createPopUp(ImageViewer, viewPops, {
-          autoDismiss: false,
-          modal: false,
-          anchor: view.dom.parentElement,
-        });
+      const viewPops = {
+        nodeViewDom: popupNodeViewDom,
+        onClose: (): void => {
+          if (this._popUp) {
+            this._popUp.close();
+            this._popUp = null;
+          }
+        },
+      };
 
+      const anchor = this.view.dom?.parentElement || this.view.dom;
+      this._popUp = createPopUp(ImageViewer, viewPops, {
+        autoDismiss: false,
+        modal: false,
+        anchor,
       });
-      this.maximizeButton.classList.add('handle-hidden-on-hover');
-      this.dom.appendChild(this.maximizeButton);
-    }
+
+    });
+    this.maximizeButton.classList.add('handle-hidden-on-hover');
+    this.dom.appendChild(this.maximizeButton);
     this.updateNotesTrigger();
   }
 
@@ -157,10 +161,10 @@ export class EnhancedTableFigureView implements NodeView {
     this.contentDOM.style.width = '100%';
     // Update the node reference and attributes
     this.node = node;
-    this.dom.setAttribute('data-id', node.attrs.id);
-    this.dom.setAttribute('data-figure-type', node.attrs.figureType);
-    this.dom.setAttribute('data-orientation', node.attrs.orientation);
-    this.dom.setAttribute('data-maximized', node.attrs.maximized ? 'true' : 'false');
+    this.dom.dataset.id = node.attrs.id;
+    this.dom.dataset.figureType = node.attrs.figureType;
+    this.dom.dataset.orientation = node.attrs.orientation;
+    this.dom.dataset.maximized = node.attrs.maximized ? 'true' : 'false';
 
     // Update class names while preserving important classes
     const baseClasses = ['enhanced-table-figure'];
@@ -194,12 +198,12 @@ export class EnhancedTableFigureView implements NodeView {
 
   selectNode() {
     this.dom.classList.add('ProseMirror-selectednode');
-    this.dom.setAttribute('data-active', 'true');
+    this.dom.dataset.active = 'true';
     this._renderInlineEditor();
   }
 
   deselectNode() {
-    this.dom.setAttribute('data-active', undefined);
+    delete this.dom.dataset.active;
     this._inlineEditor?.close?.(undefined);
     this.dom.classList.remove('ProseMirror-selectednode');
   }
@@ -219,7 +223,7 @@ export class EnhancedTableFigureView implements NodeView {
       editorView: this.view,
     };
     const el = document.getElementById(this._id);
-    if (!el || el.getAttribute('data-active') !== 'true') {
+    if (el?.dataset?.active !== 'true') {
       this._inlineEditor?.close?.(undefined);
       return;
     }
@@ -254,4 +258,48 @@ export class EnhancedTableFigureView implements NodeView {
     tr = tr.setSelection(origSelection);
     this.view.dispatch(tr);
   };
+
+  private copyNotesStylesToPopupClone(cloneRoot: HTMLElement): void {
+    const sourceNotes = Array.from(
+      this.dom.getElementsByClassName(NOTES_CLASSNAME)
+    ) as HTMLElement[];
+    const targetNotes = Array.from(
+      cloneRoot.getElementsByClassName(NOTES_CLASSNAME)
+    ) as HTMLElement[];
+
+    targetNotes.forEach((targetNote, noteIndex) => {
+      const sourceNote = sourceNotes[noteIndex];
+      if (!sourceNote) {
+        return;
+      }
+
+      const sourceNodes = [
+        sourceNote,
+        ...Array.from(sourceNote.querySelectorAll('*')),
+      ] as HTMLElement[];
+      const targetNodes = [
+        targetNote,
+        ...Array.from(targetNote.querySelectorAll('*')),
+      ] as HTMLElement[];
+
+      targetNodes.forEach((targetNode, nodeIndex) => {
+        const sourceNode = sourceNodes[nodeIndex];
+        if (!sourceNode) {
+          return;
+        }
+
+        const computed = globalThis.getComputedStyle(sourceNode);
+        if (computed.color) {
+          targetNode.style.setProperty('color', computed.color, 'important');
+        }
+        if (computed.opacity) {
+          targetNode.style.setProperty(
+            'opacity',
+            computed.opacity,
+            'important'
+          );
+        }
+      });
+    });
+  }
 }
