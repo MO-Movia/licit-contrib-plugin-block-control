@@ -114,8 +114,23 @@ export class EnhancedTableFigureView implements NodeView {
       });
       this.maximizeButton.addEventListener('click', (e) => {
         e.preventDefault();
+       const clonedDom = this.dom.cloneNode(true) as HTMLElement;
+
+        // Truncate notes to one line if they overflow
+        const notesEl = clonedDom.querySelector('.enhanced-table-figure-notes') as HTMLElement;
+        if (notesEl) {
+          Object.assign(notesEl.style, {
+            display: '-webkit-box',
+            WebkitLineClamp: '1',
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'normal',
+          });
+        }
+
         const viewPops = {
-          nodeViewDom: this.dom.cloneNode(true) as HTMLElement,
+          nodeViewDom: clonedDom,
           onClose: (): void => {
             if (this._popUp) {
               this._popUp.close();
