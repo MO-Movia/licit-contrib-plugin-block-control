@@ -45,7 +45,7 @@ export class EnhancedTableFigureView implements NodeView {
 
     // end
     this.contentDOM.className = 'enhanced-table-figure-content';
-    this.contentDOM.setAttribute('data-orientation', node.attrs.orientation);
+    this.contentDOM.dataset['orientation'] = node.attrs.orientation;
     this.dom.appendChild(this.contentDOM);
 
     // Add Notes button
@@ -117,8 +117,8 @@ export class EnhancedTableFigureView implements NodeView {
        const clonedDom = this.dom.cloneNode(true) as HTMLElement;
 
         // Truncate notes to one line if they overflow
-        const notesEl = clonedDom.querySelector('.enhanced-table-figure-notes') as HTMLElement;
-        if (notesEl) {
+        const notesEl = clonedDom.querySelector('.enhanced-table-figure-notes');
+        if (notesEl instanceof HTMLElement) {
           Object.assign(notesEl.style, {
             display: '-webkit-box',
             WebkitLineClamp: '1',
@@ -139,10 +139,11 @@ export class EnhancedTableFigureView implements NodeView {
           },
         };
 
+        const anchor = this.view?.dom?.parentElement ?? this.view?.dom ?? this.dom;
         this._popUp = createPopUp(ImageViewer, viewPops, {
           autoDismiss: false,
           modal: false,
-          anchor: view.dom.parentElement,
+          anchor,
         });
 
       });
@@ -174,8 +175,8 @@ export class EnhancedTableFigureView implements NodeView {
     this.node = node;
     this.dom.setAttribute('data-id', node.attrs.id);
     this.dom.setAttribute('data-figure-type', node.attrs.figureType);
-    this.dom.setAttribute('data-orientation', node.attrs.orientation);
-    this.dom.setAttribute('data-maximized', node.attrs.maximized ? 'true' : 'false');
+    this.dom.dataset['orientation'] = node.attrs.orientation;
+    this.dom.dataset['maximized'] = node.attrs.maximized ? 'true' : 'false';
 
     // Update class names while preserving important classes
     const baseClasses = ['enhanced-table-figure'];
