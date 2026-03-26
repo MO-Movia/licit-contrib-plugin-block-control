@@ -20,8 +20,8 @@ export const ImageViewer: React.FC<Props> = ({
             'enhanced-table-figure-content'
         )[0] as HTMLElement).style.width = '864px';
 
-        (nodeViewDom as HTMLElement).style.width = 'auto';
-        (nodeViewDom as HTMLElement).style.maxWidth = '1024px';
+        nodeViewDom.style.width = 'auto';
+        nodeViewDom.style.maxWidth = '1024px';
 
         const imgClip = nodeViewDom.getElementsByClassName(
             'molm-czi-image-view-body-img-clip'
