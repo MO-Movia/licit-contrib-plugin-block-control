@@ -80,8 +80,8 @@
   pointer-events: auto;
 }
 
-.ProseMirror[contenteditable="false"]
-  .enhanced-table-figure[data-figure-type="figure"]
+.ProseMirror[contenteditable='false']
+  .enhanced-table-figure[data-figure-type='figure']
   .enhanced-table-figure-capco {
   display: none !important;
 }
@@ -99,4 +99,170 @@
 .image-viewer-content {
   background: white;
   padding: 16px;
+}
+
+/* Enhanced Table Figure Container */
+.enhanced-table-figure {
+  position: relative;
+  overflow: visible;
+  width: 624px;
+  max-width: 624px;
+  margin: 0 auto;
+}
+
+.enhanced-table-figure[data-active='true'] {
+  outline: 2px solid var(--color-primary, #185fa5);
+  outline-offset: 2px;
+}
+
+.enhanced-table-figure.ProseMirror-selectednode {
+  background-color: var(--color-background-info, rgba(24, 95, 165, 0.08));
+}
+
+/* Content Container */
+.enhanced-table-figure-content {
+  width: 100%;
+  position: relative;
+}
+
+/* Orientation variants */
+.enhanced-table-figure[data-orientation='landscape'] {
+  /* Add landscape-specific styles if needed */
+}
+
+/* Select Handle */
+.enhanced-table-figure-select-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  cursor: pointer;
+  padding: 2px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  z-index: 10;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary, #333);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.enhanced-table-figure-select-handle:hover {
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border-color: var(--color-border-secondary, rgba(0, 0, 0, 0.1));
+}
+
+.enhanced-table-figure-select-handle:active {
+  transform: scale(0.95);
+}
+
+/* Add Notes Button */
+.enhanced-table-figure-add-notes {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  display: none;
+  padding: 6px 12px;
+  background-color: var(--color-background-info, #e6f1fb);
+  border: 1px solid var(--color-border-info, #85b7eb);
+  border-radius: 4px;
+  color: var(--color-text-primary, #333);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 9;
+}
+
+.enhanced-table-figure-add-notes:hover {
+  background-color: var(--color-background-info-hover, #b5d4f4);
+  border-color: var(--color-border-info-hover, #378add);
+}
+
+.enhanced-table-figure-add-notes:active {
+  transform: scale(0.98);
+}
+
+.enhanced-table-figure-add-notes:focus {
+  outline: 2px solid var(--color-primary, #185fa5);
+  outline-offset: 2px;
+}
+
+.enhanced-table-figure-add-notes:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Maximize Button */
+.enhanced-table-figure-maximize-button {
+  position: absolute;
+  top: 0;
+  right: 23px;
+  cursor: pointer;
+  padding: 2px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  z-index: 10;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary, #333);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.enhanced-table-figure-maximize-button:hover {
+  background-color: var(--color-background-secondary, #f5f5f5);
+  border-color: var(--color-border-secondary, rgba(0, 0, 0, 0.1));
+}
+
+.enhanced-table-figure-maximize-button:active {
+  transform: scale(0.95);
+}
+
+/* Handle visibility on hover */
+.enhanced-table-figure.has-hover-handle:hover .handle-hidden-on-hover {
+  opacity: 1;
+}
+
+.enhanced-table-figure .handle-hidden-on-hover {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Focus visible for keyboard accessibility */
+.enhanced-table-figure-select-handle:focus-visible,
+.enhanced-table-figure-maximize-button:focus-visible {
+  outline: 2px solid var(--color-primary, #185fa5);
+  outline-offset: 2px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .enhanced-table-figure-select-handle:hover {
+    background-color: var(--color-background-secondary, #2a2a2a);
+    border-color: var(--color-border-secondary, rgba(255, 255, 255, 0.2));
+    color: var(--color-text-primary, #e0e0e0);
+  }
+
+  .enhanced-table-figure-maximize-button:hover {
+    background-color: var(--color-background-secondary, #2a2a2a);
+    border-color: var(--color-border-secondary, rgba(255, 255, 255, 0.2));
+    color: var(--color-text-primary, #e0e0e0);
+  }
+
+  .enhanced-table-figure.ProseMirror-selectednode {
+    background-color: rgba(24, 95, 165, 0.15);
+  }
+}
+
+/* Accessibility: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .enhanced-table-figure-select-handle,
+  .enhanced-table-figure-add-notes,
+  .enhanced-table-figure-maximize-button,
+  .enhanced-table-figure .handle-hidden-on-hover {
+    transition: none;
+  }
 }

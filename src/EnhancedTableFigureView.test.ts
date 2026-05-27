@@ -89,6 +89,22 @@ describe('EnhancedTableFigureView', () => {
       expect(landscapeView.dom.style.maxWidth).toBe('624px');
       expect(landscapeView.contentDOM.style.width).toBe('100%');
     });
+
+    it('should open a popup when hamburger handle is clicked', () => {
+      const { createPopUp } = require('@modusoperandi/licit-ui-commands');
+
+      expect(() => view.selectHandle.click()).not.toThrow();
+      expect(createPopUp).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          menuItems: expect.any(Array),
+        }),
+        expect.objectContaining({
+          autoDismiss: true,
+          anchor: view.selectHandle,
+        })
+      );
+    });
   });
 
   describe('update', () => {
@@ -220,94 +236,94 @@ describe('EnhancedTableFigureView', () => {
   });
 
   describe('maximizeButton', () => {
-  let figureView: EnhancedTableFigureView;
+    let figureView: EnhancedTableFigureView;
 
-  beforeEach(() => {
-    const figureNode = {
-      ...mockNode,
-      attrs: {
-        ...mockNode.attrs,
-        figureType: 'figure',
-      },
-      forEach: jest.fn(),
-    } as unknown as ProseMirrorNode;
+    beforeEach(() => {
+      const figureNode = {
+        ...mockNode,
+        attrs: {
+          ...mockNode.attrs,
+          figureType: 'figure',
+        },
+        forEach: jest.fn(),
+      } as unknown as ProseMirrorNode;
 
-    figureView = new EnhancedTableFigureView(figureNode, mockView, mockGetPos);
+      figureView = new EnhancedTableFigureView(figureNode, mockView, mockGetPos);
+    });
+
+    it('should create maximize button for non-table figureType', () => {
+      expect(figureView.maximizeButton).toBeDefined();
+      expect(figureView.maximizeButton.classList.contains('handle-hidden-on-hover')).toBe(true);
+    });
+
+    it('should not create maximize button for table figureType', () => {
+      expect(view.maximizeButton).toBeUndefined();
+    });
+
+    it('should call createPopUp with cloned DOM on maximize button click', () => {
+      const { createPopUp } = require('@modusoperandi/licit-ui-commands');
+      figureView.maximizeButton.click();
+
+      expect(createPopUp).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          nodeViewDom: expect.any(HTMLElement),
+        }),
+        expect.objectContaining({
+          autoDismiss: false,
+          modal: false,
+        })
+      );
+    });
+
+    it('should truncate notes element to one line in cloned DOM', () => {
+
+      const { createPopUp } = require('@modusoperandi/licit-ui-commands');
+      const notesEl = document.createElement('div');
+      notesEl.className = 'enhanced-table-figure-notes';
+      notesEl.textContent = 'Line1\nLine2\nLine3\nLine4\nLine5\nLine6\nLine7\nLine8\nLine9\nLine10';
+      figureView.dom.appendChild(notesEl);
+
+      figureView.maximizeButton.click();
+
+      const passedDom: HTMLElement = createPopUp.mock.calls[0][1].nodeViewDom;
+      const clonedNotes = passedDom.querySelector('.enhanced-table-figure-notes') as HTMLElement;
+
+      expect(clonedNotes).not.toBeNull();
+      expect(clonedNotes.style.webkitLineClamp).toBe('1');
+      expect(clonedNotes.style.overflow).toBe('hidden');
+      expect(clonedNotes.style.textOverflow).toBe('ellipsis');
+      expect(clonedNotes.style.whiteSpace).toBe('normal');
+    });
+
+    it('should not affect original DOM notes element after maximize click', () => {
+      const notesEl = document.createElement('div');
+      notesEl.className = 'enhanced-table-figure-notes';
+      notesEl.textContent = 'Line1\nLine2\nLine3';
+      figureView.dom.appendChild(notesEl);
+
+      figureView.maximizeButton.click();
+
+      expect(notesEl.style.overflow).toBe('');
+      expect(notesEl.style.textOverflow).toBe('');
+    });
+
+    it('should handle missing notes element gracefully', () => {
+      expect(() => figureView.maximizeButton.click()).not.toThrow();
+    });
+
+    it('should close existing popup and set to null via onClose callback', () => {
+      const { createPopUp } = require('@modusoperandi/licit-ui-commands');
+      const mockClose = jest.fn();
+      createPopUp.mockReturnValue({ close: mockClose });
+
+      figureView.maximizeButton.click();
+
+      const onClose = createPopUp.mock.calls[0][1].onClose;
+      onClose();
+
+      expect(mockClose).toHaveBeenCalled();
+      expect(figureView['_popUp']).toBeNull();
+    });
   });
-
-  it('should create maximize button for non-table figureType', () => {
-    expect(figureView.maximizeButton).toBeDefined();
-    expect(figureView.maximizeButton.classList.contains('handle-hidden-on-hover')).toBe(true);
-  });
-
-  it('should not create maximize button for table figureType', () => {
-    expect(view.maximizeButton).toBeUndefined();
-  });
-
-  it('should call createPopUp with cloned DOM on maximize button click', () => {
-    const { createPopUp } = require('@modusoperandi/licit-ui-commands');
-    figureView.maximizeButton.click();
-
-    expect(createPopUp).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        nodeViewDom: expect.any(HTMLElement),
-      }),
-      expect.objectContaining({
-        autoDismiss: false,
-        modal: false,
-      })
-    );
-  });
-
-  it('should truncate notes element to one line in cloned DOM', () => {
-
-    const { createPopUp } = require('@modusoperandi/licit-ui-commands');
-    const notesEl = document.createElement('div');
-    notesEl.className = 'enhanced-table-figure-notes';
-    notesEl.textContent = 'Line1\nLine2\nLine3\nLine4\nLine5\nLine6\nLine7\nLine8\nLine9\nLine10';
-    figureView.dom.appendChild(notesEl);
-
-    figureView.maximizeButton.click();
-
-    const passedDom: HTMLElement = createPopUp.mock.calls[0][1].nodeViewDom;
-    const clonedNotes = passedDom.querySelector('.enhanced-table-figure-notes') as HTMLElement;
-
-    expect(clonedNotes).not.toBeNull();
-    expect(clonedNotes.style.webkitLineClamp).toBe('1');
-    expect(clonedNotes.style.overflow).toBe('hidden');
-    expect(clonedNotes.style.textOverflow).toBe('ellipsis');
-    expect(clonedNotes.style.whiteSpace).toBe('normal');
-  });
-
-  it('should not affect original DOM notes element after maximize click', () => {
-    const notesEl = document.createElement('div');
-    notesEl.className = 'enhanced-table-figure-notes';
-    notesEl.textContent = 'Line1\nLine2\nLine3';
-    figureView.dom.appendChild(notesEl);
-
-    figureView.maximizeButton.click();
-
-    expect(notesEl.style.overflow).toBe('');
-    expect(notesEl.style.textOverflow).toBe('');
-  });
-
-  it('should handle missing notes element gracefully', () => {
-    expect(() => figureView.maximizeButton.click()).not.toThrow();
-  });
-
-  it('should close existing popup and set to null via onClose callback', () => {
-    const { createPopUp } = require('@modusoperandi/licit-ui-commands');
-    const mockClose = jest.fn();
-    createPopUp.mockReturnValue({ close: mockClose });
-
-    figureView.maximizeButton.click();
-
-    const onClose = createPopUp.mock.calls[0][1].onClose;
-    onClose();
-
-    expect(mockClose).toHaveBeenCalled();
-    expect(figureView['_popUp']).toBeNull();
-  });
-});
 });
