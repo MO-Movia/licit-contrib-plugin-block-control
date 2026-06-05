@@ -9,12 +9,19 @@ import {
 } from './CursorPlaceholderPlugin';
 import { UICommand } from '@modusoperandi/licit-doc-attrs-step';
 import { createPopUp, PopUpHandle } from '@modusoperandi/licit-ui-commands';
+import { LANDSCAPE_SECTION } from './Constants';
 
 import type { ImageProps } from './Types';
 
 
 // Command to insert the Enhanced Table/Figure node (for image)
-export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
+export function insertEnhancedImageFigure(
+  tr,
+  schema,
+  imageUrl,
+  altText = '',
+  withLandscapeSection = false
+) {
   const { selection } = tr;
   const { from, to } = selection;
   if (from !== to) {
@@ -50,14 +57,18 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
   const content = Fragment.fromArray([bodyNode, capcoNode]);
   // Set the figureType to 'figure'.
   const figureNode = figureNodeType.create({ figureType: 'figure', orientation: 'landscape' }, content);
+  const landscapeNodeType = schema.nodes[LANDSCAPE_SECTION];
+  const insertNode = withLandscapeSection && landscapeNodeType
+    ? landscapeNodeType.create(null, figureNode)
+    : figureNode;
 
   // Insert the figure node.
-  tr = tr.insert(from, figureNode);
+  tr = tr.insert(from, insertNode);
 
   // Insert a new paragraph after the figure.
   const paragraphNode = schema.nodes.paragraph.createAndFill();
   if (paragraphNode) {
-    const after = from + figureNode.nodeSize;
+    const after = from + insertNode.nodeSize;
     tr = tr.insert(after, paragraphNode);
     tr = tr.setSelection(TextSelection.create(tr.doc, after + 1));
   }
@@ -67,6 +78,12 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
 
 export class ImageSourceCommand extends UICommand {
   _popUp?: PopUpHandle;
+  _withLandscapeSection: boolean;
+
+  constructor(options?: { withLandscapeSection?: boolean }) {
+    super();
+    this._withLandscapeSection = !!options?.withLandscapeSection;
+  }
 
   getEditor(): typeof React.Component {
     return undefined;
@@ -117,7 +134,13 @@ export class ImageSourceCommand extends UICommand {
       tr = tr.setSelection(selection);
       if (inputs) {
         const { src } = inputs;
-        tr = insertEnhancedImageFigure(tr, schema, src) as Transaction;
+        tr = insertEnhancedImageFigure(
+          tr,
+          schema,
+          src,
+          '',
+          this._withLandscapeSection
+        ) as Transaction;
       }
       dispatch(tr);
       view?.focus();
@@ -127,6 +150,10 @@ export class ImageSourceCommand extends UICommand {
   };
 
   __isEnabled = (state: EditorState, _view: EditorView): boolean => {
+    if (this._withLandscapeSection && !state.schema.nodes[LANDSCAPE_SECTION]) {
+      return false;
+    }
+
     const tr = state;
     const { selection } = tr;
     if (selection instanceof TextSelection) {

@@ -69,6 +69,12 @@ describe('ImageSourceCommand', () => {
           toDOM: () => ['div', { class: 'figure-capco' }, 0],
           parseDOM: [{ tag: 'div.figure-capco' }],
         },
+        landscape_section: {
+          content: 'block+',
+          group: 'block',
+          toDOM: () => ['section', { class: 'section-landscape' }, 0],
+          parseDOM: [{ tag: 'section.section-landscape' }],
+        },
       },
     });
 
@@ -210,6 +216,18 @@ describe('ImageSourceCommand', () => {
       expect(hideCursorPlaceholder).toHaveBeenCalledWith(view.state);
       expect(view.focus).toHaveBeenCalled();
       expect(result).toBe(false);
+    });
+
+    it('should insert enhanced image figure inside landscape section', () => {
+      command = new ImageSourceCommand({ withLandscapeSection: true });
+      const inputs = { src: 'test-image.jpg', alt: 'Test Image' };
+
+      command.executeWithUserInput(state, dispatch, view, inputs);
+
+      const tr = dispatch.mock.calls[0][0];
+      const insertedNode = tr.doc.child(1);
+      expect(insertedNode.type.name).toBe('landscape_section');
+      expect(insertedNode.firstChild.type.name).toBe('enhanced_table_figure');
     });
 
     it('should handle null inputs', () => {
