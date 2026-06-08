@@ -123,6 +123,8 @@
 .enhanced-table-figure-content {
   width: 100%;
   position: relative;
+  padding: 0;
+  margin: 0;
 }
 
 /* Orientation variants */
@@ -134,7 +136,7 @@
 .enhanced-table-figure-select-handle {
   position: absolute;
   top: -2px;
-  right: -27px;
+  right: -12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -203,8 +205,8 @@
 /* Maximize Button */
 .enhanced-table-figure-maximize-button {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -6px;
+  right: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -222,11 +224,6 @@
   color: var(--color-text-primary, #333);
   transition: all 0.2s ease;
   user-select: none;
-}
-
-.enhanced-table-figure-maximize-button:hover {
-  background-color: var(--color-background-secondary, #f5f5f5);
-  border-color: var(--color-border-secondary, rgba(0, 0, 0, 0.1));
 }
 
 .enhanced-table-figure-maximize-button:active {
