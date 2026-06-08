@@ -1,159 +1,653 @@
+import * as React from 'react';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorView, NodeView } from 'prosemirror-view';
-import { NodeSelection, TextSelection } from 'prosemirror-state';
+import { TextSelection } from 'prosemirror-state';
 import { addNotesCommand } from './EnhancedTableCommands';
-import { atAnchorBottomCenter, createPopUp, PopUpHandle, uuid } from '@modusoperandi/licit-ui-commands';
-import { ImageInlineEditor } from './ui/ImageInlineEditor';
+import { atAnchorTopCenter, createPopUp, PopUpHandle, uuid } from '@modusoperandi/licit-ui-commands';
 import { ImageViewer } from './ui/ImageViewer';
+import { CropImagePopup, CropDataPropValue } from './ui/CropImagePopup';
+import { Icon } from './ui/Icon';
 
-const FRAMESET_BODY_CLASSNAME = 'czi-editor-frame-body';
+/**
+ * Menu item interface for dropdown
+ */
+interface MenuItemConfig {
+  id: string;
+  label: string;
+  icon: string;
+  action: () => void;
+  disabled?: boolean;
+}
 
+/**
+ * Hamburger menu dropdown component
+ */
+interface HamburgerMenuDropdownProps {
+  menuItems: MenuItemConfig[];
+  close: () => void;
+}
+
+function HamburgerMenuDropdownView({ menuItems }: HamburgerMenuDropdownProps): React.ReactElement {
+  return React.createElement(
+    'div',
+    { className: 'enhanced-table-hamburger-menu' },
+    ...menuItems.map((item) =>
+      React.createElement(
+        'button',
+        {
+          key: item.id,
+          className: 'enhanced-table-hamburger-menu-item',
+          'data-id': item.id,
+          disabled: item.disabled ?? false,
+          type: 'button',
+          onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!item.disabled) {
+              item.action();
+            }
+          },
+        },
+        React.createElement(
+          'span',
+          { className: 'enhanced-table-hamburger-menu-icon' },
+          Icon.get(item.icon, item.label)
+        ),
+        React.createElement('span', { className: 'enhanced-table-hamburger-menu-label' }, item.label)
+      )
+    )
+  );
+}
+
+/**
+ * Command registry for figure operations
+ * Encapsulates all commands related to figures
+ */
+class FigureCommandRegistry {
+  private nodePos: number;
+  private node: ProseMirrorNode;
+  private view: EditorView;
+
+  constructor(nodePos: number, node: ProseMirrorNode, view: EditorView) {
+    this.nodePos = nodePos;
+    this.node = node;
+    this.view = view;
+  }
+
+  /**
+   * Insert paragraph above the figure
+   *
+   * What's passed:
+   * - tr (Transaction): state.tr for mutations
+   * - pos (number): this.nodePos (position of figure)
+   * - schema: state.schema for creating nodes
+   */
+  insertParagraphAbove(): void {
+    const { state, dispatch } = this.view;
+    const { schema } = state;
+
+    // Create empty paragraph node
+    const paragraph = schema.nodes.paragraph.create();
+
+    // Insert at the node position
+    let tr = state.tr.insert(this.nodePos, paragraph);
+
+    // Set cursor in the new paragraph
+    const resolvedPos = tr.doc.resolve(this.nodePos + 1);
+    tr = tr.setSelection(TextSelection.create(tr.doc, resolvedPos.pos));
+
+    dispatch(tr);
+  }
+
+  /**
+   * Insert paragraph below the figure
+   *
+   * What's passed:
+   * - tr (Transaction): state.tr for mutations
+   * - pos (number): this.nodePos + this.node.nodeSize (position after figure)
+   * - schema: state.schema for creating nodes
+   */
+  insertParagraphBelow(): void {
+    const { state, dispatch } = this.view;
+    const { schema } = state;
+
+    // Create empty paragraph node
+    const paragraph = schema.nodes.paragraph.create();
+
+    // Calculate position after the figure
+    const posAfterNode = this.nodePos + this.node.nodeSize;
+
+    // Insert after the node
+    let tr = state.tr.insert(posAfterNode, paragraph);
+
+    // Set cursor in the new paragraph
+    const resolvedPos = tr.doc.resolve(posAfterNode + 1);
+    tr = tr.setSelection(TextSelection.create(tr.doc, resolvedPos.pos));
+
+    dispatch(tr);
+  }
+
+  /**
+   * Delete the figure node
+   *
+   * What's passed:
+   * - pos (number): this.nodePos (start position)
+   * - endPos (number): this.nodePos + this.node.nodeSize (end position)
+   */
+  deleteFigure(): void {
+    const { state, dispatch } = this.view;
+
+    // Delete from start to end of node
+    const from = this.nodePos;
+    const to = this.nodePos + this.node.nodeSize;
+
+    const tr = state.tr.delete(from, to);
+
+    dispatch(tr);
+  }
+}
+
+/**
+ * Manages PopUp lifecycle to prevent memory leaks
+ */
+class PopUpManager {
+  private popUps = new Map<string, PopUpHandle>();
+
+  create(name: string, Component: unknown, props, options: unknown): PopUpHandle {
+    this.close(name); // Close any existing PopUp with this name
+    const handle = createPopUp(Component, props, options);
+    this.popUps.set(name, handle);
+    return handle;
+  }
+
+  close(name: string): void {
+    const handle = this.popUps.get(name);
+    if (handle) {
+      handle.close?.(undefined);
+      this.popUps.delete(name);
+    }
+  }
+
+  closeAll(): void {
+    this.popUps.forEach((handle) => {
+      handle.close?.(undefined);
+    });
+    this.popUps.clear();
+  }
+
+  has(name: string): boolean {
+    return this.popUps.has(name);
+  }
+}
+
+/**
+ * Encapsulates handle UI creation and state
+ */
+class HandleController {
+  selectHandle: HTMLElement;
+  maximizeButton?: HTMLElement;
+  private onHamburgerClick: (e: Event) => void;
+  private onMaximizeClick: (e: Event) => void;
+
+  constructor(
+    onHamburgerClick: (e: Event) => void,
+    onMaximizeClick: (e: Event) => void
+  ) {
+    this.onHamburgerClick = onHamburgerClick;
+    this.onMaximizeClick = onMaximizeClick;
+
+    this.selectHandle = this.createHamburgerHandle();
+  }
+
+  private createHamburgerHandle(): HTMLElement {
+    const handle = document.createElement('div');
+    handle.className = 'enhanced-table-figure-select-handle handle-hidden-on-hover';
+    handle.setAttribute('aria-label', 'Figure menu');
+    handle.setAttribute('role', 'button');
+    handle.setAttribute('tabindex', '0');
+    handle.textContent = '☰';
+    handle.addEventListener('click', this.onHamburgerClick);
+
+    // Keyboard support
+    handle.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.onHamburgerClick(e);
+      }
+    });
+
+    return handle;
+  }
+
+  createMaximizeButton(): HTMLElement {
+    if (this.maximizeButton) return this.maximizeButton;
+
+    const button = document.createElement('div');
+    button.className = 'enhanced-table-figure-maximize-button handle-hidden-on-hover';
+    button.setAttribute('aria-label', 'Maximize figure');
+    button.setAttribute('role', 'button');
+    button.setAttribute('tabindex', '0');
+    button.textContent = '⛶';
+    button.addEventListener('click', this.onMaximizeClick);
+
+    // Keyboard support
+    button.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.onMaximizeClick(e);
+      }
+    });
+
+    this.maximizeButton = button;
+    return button;
+  }
+
+  destroy(): void {
+    this.selectHandle.removeEventListener('click', this.onHamburgerClick);
+    if (this.maximizeButton) {
+      this.maximizeButton.removeEventListener('click', this.onMaximizeClick);
+    }
+  }
+}
+
+/**
+ * Enhanced NodeView for table figures with hamburger menu dropdown
+ */
 export class EnhancedTableFigureView implements NodeView {
   node: ProseMirrorNode;
   view: EditorView;
   getPos: () => number;
   dom: HTMLElement;
   contentDOM: HTMLElement;
-  addNotesButton: HTMLButtonElement;
-  selectHandle: HTMLElement;
-  maximizeButton: HTMLElement;
-  _inlineEditor?: PopUpHandle;
-  _id = uuid();
-  private _popUp = null;
+
+  private _id = uuid();
+  private _popUpManager = new PopUpManager();
+  private _handleController: HandleController;
+
   constructor(node: ProseMirrorNode, view: EditorView, getPos: () => number) {
     this.node = node;
     this.view = view;
     this.getPos = getPos;
 
-    // Main container
-    this.dom = document.createElement('div');
-    this.dom.setAttribute('id', this._id);
-    this.dom.className = 'enhanced-table-figure';
-    this.dom.setAttribute('data-type', 'enhanced-table-figure');
-    this.dom.setAttribute('data-id', node.attrs.id);
-    this.dom.setAttribute('data-figure-type', node.attrs.figureType);
-    this.dom.style.position = 'relative';
-    this.dom.style.overflow = 'visible';
-
-    // contentDOM
-    this.contentDOM = document.createElement('div');
-    const portraitWidthPx = 6.5 * 96; // 624 (864/9 inches)
-    // This is the scrollable container
-    this.dom.style.width = `${portraitWidthPx}px`;
-    this.dom.style.maxWidth = `${portraitWidthPx}px`;
-    this.contentDOM.style.width = '100%';
-
-    // end
-    this.contentDOM.className = 'enhanced-table-figure-content';
-    this.contentDOM.dataset['orientation'] = node.attrs.orientation;
+    // Setup main container
+    this.dom = this.createMainContainer();
+    this.contentDOM = this.createContentDOM();
     this.dom.appendChild(this.contentDOM);
 
-    // Add Notes button
-    this.addNotesButton = document.createElement('button');
-    this.addNotesButton.className = 'enhanced-table-figure-add-notes';
-    this.addNotesButton.classList.add('handle-hidden-on-hover');
-    this.addNotesButton.textContent = 'Add Notes';
-    Object.assign(this.addNotesButton.style, {
-      position: 'absolute',
-      bottom: '2px',
-      right: '2px',
-      display: 'none',
-    });
-    this.addNotesButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      const { state, dispatch } = this.view;
-      dispatch(addNotesCommand(state.tr, state.schema, this.getPos()));
-    });
-    this.dom.appendChild(this.addNotesButton);
+    // Setup handles with hamburger menu
+    this._handleController = new HandleController(
+      (e) => this.handleHamburgerMenuClick(e),
+      (e) => this.handleMaximizeClick(e)
+    );
 
-    // Selection handle
-    this.selectHandle = document.createElement('div');
-    this.selectHandle.className = 'enhanced-table-figure-select-handle';
-    this.selectHandle.textContent = '☰';
-    Object.assign(this.selectHandle.style, {
-      position: 'absolute',
-      top: '0px',
-      right: '0px',
-      cursor: 'pointer',
-      padding: '2px 4px',
-      background: 'transparent',
-      borderRadius: '3px',
-      zIndex: '10',
-      fontSize: '12px',
-      fontWeight: 600
-    });
-    this.selectHandle.addEventListener('click', (e) => {
-      e.preventDefault();
-      const { state, dispatch } = this.view;
-      const pos = this.getPos();
-      if (state.selection instanceof NodeSelection && state.selection.from === pos) {
-        dispatch(state.tr.setSelection(TextSelection.create(state.doc, pos + 1)));
-      } else {
-        dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)));
-      }
-    });
-    this.selectHandle.classList.add('handle-hidden-on-hover');
-    this.dom.classList.add('has-hover-handle');
-    this.dom.appendChild(this.selectHandle);
-    // Maximize button
+    this.dom.appendChild(this._handleController.selectHandle);
+
     if (node.attrs.figureType !== 'table') {
-      this.maximizeButton = document.createElement('div');
-      this.maximizeButton.className = 'enhanced-table-figure-maximize-button';
-      this.maximizeButton.textContent = '⛶';
-      Object.assign(this.maximizeButton.style, {
-        position: 'absolute',
-        top: '0px',
-        right: '23px',
-        cursor: 'pointer',
-        padding: '2px 4px',
-        background: 'transparent',
-        borderRadius: '3px',
-        zIndex: '10',
-        fontSize: '12px',
-        fontWeight: 600
-      });
-      this.maximizeButton.addEventListener('click', (e) => {
-        e.preventDefault();
-       const clonedDom = this.dom.cloneNode(true) as HTMLElement;
-
-        // Truncate notes to one line if they overflow
-        const notesEl = clonedDom.querySelector('.enhanced-table-figure-notes');
-        if (notesEl instanceof HTMLElement) {
-          Object.assign(notesEl.style, {
-            display: '-webkit-box',
-            WebkitLineClamp: '1',
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'normal',
-          });
-        }
-
-        const viewPops = {
-          nodeViewDom: clonedDom,
-          onClose: (): void => {
-            if (this._popUp) {
-              this._popUp.close();
-              this._popUp = null;
-            }
-          },
-        };
-
-        const anchor = this.view?.dom?.parentElement ?? this.view?.dom ?? this.dom;
-        this._popUp = createPopUp(ImageViewer, viewPops, {
-          autoDismiss: false,
-          modal: false,
-          anchor,
-        });
-
-      });
-      this.maximizeButton.classList.add('handle-hidden-on-hover');
-      this.dom.appendChild(this.maximizeButton);
+      this.dom.appendChild(this._handleController.createMaximizeButton());
     }
-    this.updateNotesTrigger();
+
   }
 
-  onResizeEnd = (newWidth: number, newHeight: number) => {
+  private createMainContainer(): HTMLElement {
+    const dom = document.createElement('div');
+    dom.setAttribute('id', this._id);
+    dom.setAttribute('data-type', 'enhanced-table-figure');
+    dom.setAttribute('data-id', this.node.attrs.id);
+    dom.setAttribute('data-figure-type', this.node.attrs.figureType);
+    dom.setAttribute('data-active', 'false');
+    dom.className = 'enhanced-table-figure has-hover-handle';
+    return dom;
+  }
+
+  private createContentDOM(): HTMLElement {
+    const contentDOM = document.createElement('div');
+    contentDOM.className = 'enhanced-table-figure-content';
+    contentDOM.dataset['orientation'] = this.node.attrs.orientation;
+    return contentDOM;
+  }
+
+
+  private handleHamburgerMenuClick(e: Event): void {
+    e.preventDefault();
+
+    // Create command registry with current node context
+    const commandRegistry = new FigureCommandRegistry(this.getPos(), this.node, this.view);
+
+    // Determine if notes can be added
+    let notesExists = false;
+    this.node.forEach((child) => {
+      if (child.type.name === 'enhanced_table_figure_notes') {
+        notesExists = true;
+      }
+    });
+
+    const canAddNotes =
+      !notesExists &&
+      (this.node.attrs.figureType === 'table' || this.node.attrs.figureType === 'figure');
+
+    const fullMenuItems: MenuItemConfig[] = [
+      {
+        id: 'insert-above',
+        label: 'Insert Paragraph Above',
+        icon: 'north',
+        action: () => {
+          commandRegistry.insertParagraphAbove();
+          this._popUpManager.close('hamburger-menu');
+        },
+      },
+      {
+        id: 'insert-below',
+        label: 'Insert Paragraph Below',
+        icon: 'south',
+        action: () => {
+          commandRegistry.insertParagraphBelow();
+          this._popUpManager.close('hamburger-menu');
+        },
+      },
+      {
+        id: 'choose-file',
+        label: 'Choose File',
+        icon: 'folder_open',
+        action: () => {
+          this.handleChooseFile();
+          this._popUpManager.close('hamburger-menu');
+        },
+      },
+      {
+        id: 'paste-clipboard',
+        label: 'Paste from Clipboard',
+        icon: 'content_paste',
+        action: () => {
+          this.handlePasteFromClipboard();
+          this._popUpManager.close('hamburger-menu');
+        },
+      },
+      ...(canAddNotes
+        ? [
+          {
+            id: 'add-notes',
+            label: 'Add Notes',
+            icon: 'note_add',
+            action: () => {
+              this.handleNotesClick(e);
+              this._popUpManager.close('hamburger-menu');
+            },
+          },
+        ]
+        : []),
+      {
+        id: 'crop',
+        label: 'Crop',
+        icon: 'crop',
+        action: () => {
+          this.handleCrop();
+          this._popUpManager.close('hamburger-menu');
+        },
+      },
+      {
+        id: 'reset-crop',
+        label: 'Reset Crop',
+        icon: 'restore',
+        action: () => {
+          this.handleResetCrop();
+          this._popUpManager.close('hamburger-menu');
+        },
+      },
+
+      {
+        id: 'delete',
+        label: 'Delete',
+        icon: 'delete',
+        action: () => {
+          commandRegistry.deleteFigure();
+          this._popUpManager.close('hamburger-menu');
+        },
+      },
+    ];
+
+    // If this is a table figure, restrict to only the requested subset of items
+    const figureType = this.node.attrs.figureType;
+    let menuItems: MenuItemConfig[] = fullMenuItems;
+    if (figureType === 'table') {
+      const allowed = new Set(['insert-above', 'insert-below', 'add-notes', 'delete']);
+      menuItems = fullMenuItems.filter((it) => allowed.has(it.id));
+    }
+
+    this._popUpManager.create('hamburger-menu', HamburgerMenuDropdownView, { menuItems }, {
+      autoDismiss: true,
+      anchor: this._handleController.selectHandle,
+    });
+  }
+
+  private handleNotesClick(e: Event): void {
+    e.preventDefault();
+    const { state, dispatch } = this.view;
+    dispatch(addNotesCommand(state.tr, state.schema, this.getPos()));
+  }
+
+  private handleMaximizeClick(e: Event): void {
+    e.preventDefault();
+    const cleanDom = this.createCleanViewerDom();
+
+    const viewProps = {
+      nodeViewDom: cleanDom,
+      onClose: () => this._popUpManager.close('maximized-view'),
+    };
+
+    const anchor = this.view?.dom?.parentElement ?? this.view?.dom ?? this.dom;
+    this._popUpManager.create('maximized-view', ImageViewer, viewProps, {
+      autoDismiss: false,
+      modal: false,
+      anchor,
+    });
+  }
+
+  private handleCrop(): void {
+    // Trigger crop functionality
+    const pos = this.getPos();
+    const { state, dispatch } = this.view;
+    const imagePath = this.findImagePath(pos);
+
+    if (imagePath !== null) {
+      const imageNode = state.doc.nodeAt(imagePath);
+      const src = imageNode.attrs.src;
+
+      const popupHandle = createPopUp(
+        CropImagePopup,
+        {
+          src,
+          position: atAnchorTopCenter,
+          onConfirm: (cropData: CropDataPropValue) => {
+            const tr = state.tr.setNodeMarkup(imagePath, null, {
+              ...imageNode.attrs,
+              cropData,
+            });
+            if (popupHandle) {
+              popupHandle.close(cropData);
+            }
+            dispatch(tr);
+          },
+          onCancel: () => {
+            if (popupHandle) {
+              popupHandle.close(null);
+            }
+          },
+          defaultUnit: 'px',
+        },
+        {
+          anchor: document.body,
+          autoDismiss: false,
+        }
+      );
+    }
+  }
+
+  private handleResetCrop(): void {
+    // Reset crop data on the image node
+    const pos = this.getPos();
+    const { state, dispatch } = this.view;
+
+    // Find the image node and reset its cropData
+    const imagePath = this.findImagePath(pos);
+
+    if (imagePath !== null) {
+      const imageNode = state.doc.nodeAt(imagePath);
+      if (imageNode) {
+        const tr = state.tr.setNodeMarkup(imagePath, undefined, {
+          ...imageNode.attrs,
+          cropData: null,
+        });
+        dispatch(tr);
+      }
+    }
+  }
+
+  private handleChooseFile(): void {
+    // Open file chooser dialog
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+
+    fileInput.onchange = (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      const file = target.files?.[0];
+
+      if (file) {
+        // Handle file selection
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const src = e.target?.result as string;
+          if (src) {
+            this.updateImageSource(src);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    fileInput.click();
+  }
+
+  private handlePasteFromClipboard(): void {
+    // Read image from clipboard
+    if (!navigator.clipboard?.read) {
+      console.error('Clipboard API not available');
+      return;
+    }
+
+    navigator.clipboard.read().then((clipboardItems) => {
+      for (const clipboardItem of clipboardItems) {
+        const imageTypes = clipboardItem.types.filter((type) => type.startsWith('image/'));
+        if (imageTypes.length > 0) {
+          clipboardItem.getType(imageTypes[0]).then((blob) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const src = e.target?.result as string;
+              if (src) {
+                this.updateImageSource(src);
+              }
+            };
+            reader.readAsDataURL(blob);
+          });
+          return;
+        }
+      }
+    }).catch((err) => {
+      console.error('Failed to read from clipboard:', err);
+    });
+  }
+
+  private updateImageSource(src: string): void {
+    // Update the image source in the document
+    const pos = this.getPos();
+    const { state, dispatch } = this.view;
+
+    const imagePath = this.findImagePath(pos);
+
+    if (imagePath !== null) {
+      const imageNode = state.doc.nodeAt(imagePath);
+      if (imageNode) {
+        const tr = state.tr.setNodeMarkup(imagePath, undefined, {
+          ...imageNode.attrs,
+          src,
+        });
+        dispatch(tr);
+      }
+    }
+  }
+
+  private findImagePath(figurePos: number): number | null {
+    // Find the path to the image node within the figure
+    // Structure: enhanced_table_figure > enhanced_table_figure_body (paragraph) > image
+    let imagePath = null;
+
+    this.node.forEach((child, childOffset) => {
+      if (child.type.name === 'enhanced_table_figure_body') {
+        // The body is a paragraph, traverse its content
+        if (child.content && child.content.size > 0) {
+          child.content.forEach((contentChild, contentOffset) => {
+            if (contentChild.type.name === 'image') {
+              // Path: figurePos + 1 (start of body) + contentOffset
+              imagePath = figurePos + 1 + childOffset + 1 + contentOffset;
+            } else {
+              // Recursively search if image is nested deeper
+              const nestedImagePath = this.findNestedImageInNode(contentChild, figurePos + 1 + childOffset + 1 + contentOffset);
+              if (nestedImagePath !== null) {
+                imagePath = nestedImagePath;
+              }
+            }
+          });
+        }
+      }
+    });
+
+    return imagePath;
+  }
+
+  private findNestedImageInNode(node: ProseMirrorNode, basePath: number): number | null {
+    // Recursively search for image node in nested content
+    if (node.type.name === 'image') {
+      return basePath;
+    }
+
+    if (node.content && node.content.size > 0) {
+      let found = null;
+      node.content.forEach((child, offset) => {
+        if (!found) {
+          if (child.type.name === 'image') {
+            found = basePath + 1 + offset;
+          } else {
+            found = this.findNestedImageInNode(child, basePath + 1 + offset);
+          }
+        }
+      });
+      return found;
+    }
+
+    return null;
+  }
+
+
+
+  // Only includes content, no handles
+  private createCleanViewerDom(): HTMLElement {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'enhanced-table-figure';
+    wrapper.setAttribute('data-id', this.node.attrs.id);
+    wrapper.setAttribute('data-figure-type', this.node.attrs.figureType);
+
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'enhanced-table-figure-content';
+
+    // Deep clone actual content
+    const actualContent = this.contentDOM.cloneNode(true);
+    contentWrapper.appendChild(actualContent);
+    wrapper.appendChild(contentWrapper);
+
+    return wrapper;
+  }
+
+  onResizeEnd = (newWidth: number, newHeight: number): void => {
     const { state, dispatch } = this.view;
     const pos = this.getPos();
     dispatch(
@@ -166,108 +660,59 @@ export class EnhancedTableFigureView implements NodeView {
   };
 
   update(node: ProseMirrorNode): boolean {
-    // Only accept updates for the same node type
     if (node.type !== this.node.type) {
       return false;
     }
-    this.contentDOM.style.width = '100%';
-    // Update the node reference and attributes
+
     this.node = node;
-    this.dom.setAttribute('data-id', node.attrs.id);
-    this.dom.setAttribute('data-figure-type', node.attrs.figureType);
-    this.dom.dataset['orientation'] = node.attrs.orientation;
-    this.dom.dataset['maximized'] = node.attrs.maximized ? 'true' : 'false';
-
-    // Update class names while preserving important classes
-    const baseClasses = ['enhanced-table-figure'];
-    if (node.attrs.orientation === 'landscape') baseClasses.push('landscape');
-    if (node.attrs.maximized) baseClasses.push('maximized');
-    if (this.dom.classList.contains('ProseMirror-selectednode')) {
-      baseClasses.push('ProseMirror-selectednode');
-    }
-    if (this.dom.classList.contains('has-hover-handle')) {
-      baseClasses.push('has-hover-handle');
-    }
-    this.dom.className = baseClasses.join(' ');
-
-    this.updateNotesTrigger();
-
-    // Return true to indicate we've handled the update
-    // ProseMirror will update the contentDOM children automatically
+    this.updateAttributes();
     return true;
   }
 
-  updateNotesTrigger() {
-    let notesExists = false;
-    this.node.forEach(child => {
-      if (child.type.name === 'enhanced_table_figure_notes') {
-        notesExists = true;
-      }
-    });
-    this.addNotesButton.style.display =
-      !notesExists && (this.node.attrs.figureType === 'table' || this.node.attrs.figureType === 'figure') ? 'block' : 'none';
+  private updateAttributes(): void {
+    // Update data attributes
+    this.dom.setAttribute('data-id', this.node.attrs.id);
+    this.dom.setAttribute('data-figure-type', this.node.attrs.figureType);
+    this.dom.dataset['orientation'] = this.node.attrs.orientation;
+    this.dom.dataset['maximized'] = this.node.attrs.maximized ? 'true' : 'false';
+    this.contentDOM.dataset['orientation'] = this.node.attrs.orientation;
+
+    // Update classes
+    this.updateClasses();
   }
 
-  selectNode() {
+  private updateClasses(): void {
+    const baseClasses = ['enhanced-table-figure', 'has-hover-handle'];
+    if (this.node.attrs.orientation === 'landscape') baseClasses.push('landscape');
+    if (this.node.attrs.maximized) baseClasses.push('maximized');
+    if (this.dom.classList.contains('ProseMirror-selectednode')) {
+      baseClasses.push('ProseMirror-selectednode');
+    }
+    this.dom.className = baseClasses.join(' ');
+  }
+
+
+
+  selectNode(): void {
     this.dom.classList.add('ProseMirror-selectednode');
     this.dom.setAttribute('data-active', 'true');
-    this._renderInlineEditor();
   }
 
-  deselectNode() {
-    this.dom.setAttribute('data-active', undefined);
-    this._inlineEditor?.close?.(undefined);
+  deselectNode(): void {
+    this.dom.setAttribute('data-active', 'false');
+    this._popUpManager.close('inline-editor');
     this.dom.classList.remove('ProseMirror-selectednode');
   }
 
-  destroy() {
-    this._inlineEditor?.close?.(undefined);
+  destroy(): void {
+    this._popUpManager.closeAll();
+    this._handleController.destroy();
   }
 
   stopEvent(_event: Event): boolean {
     return false;
   }
 
-  private _renderInlineEditor(): void {
-    const editorProps = {
-      value: this.node.attrs,
-      onSelect: this._onChange,
-      editorView: this.view,
-    };
-    const el = document.getElementById(this._id);
-    if (!el || el.getAttribute('data-active') !== 'true') {
-      this._inlineEditor?.close?.(undefined);
-      return;
-    }
 
-    if (!this._inlineEditor) {
-      this._inlineEditor = createPopUp(ImageInlineEditor, editorProps, {
-        anchor: el,
-        autoDismiss: false,
-        container: el.closest(`.${FRAMESET_BODY_CLASSNAME}`),
-        position: atAnchorBottomCenter,
-        onClose: () => {
-          this._inlineEditor = null;
-        },
-      });
-    }
-  }
 
-  _onChange = (value?: { align: string }): void => {
-
-    const align = value ? value.align : null;
-    const pos = this.getPos();
-    const attrs = {
-      ...this.node.attrs,
-      align,
-    };
-
-    let tr = this.view.state.tr;
-    const { selection } = this.view.state;
-    tr = tr.setNodeMarkup(pos, null, attrs);
-    // reset selection to original using the latest doc.
-    const origSelection = NodeSelection.create(tr.doc, selection.from);
-    tr = tr.setSelection(origSelection);
-    this.view.dispatch(tr);
-  };
 }
