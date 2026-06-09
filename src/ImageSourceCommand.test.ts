@@ -123,6 +123,13 @@ describe('ImageSourceCommand', () => {
 
       expect(command.isEnabled(newState, view)).toBe(false);
     });
+
+    it('should disable landscape figure command inside existing landscape section', () => {
+      command = new ImageSourceCommand({ withLandscapeSection: true });
+      const landscapeState = createStateInsideLandscapeSection(schema);
+
+      expect(command.isEnabled(landscapeState, view)).toBe(false);
+    });
   });
 
   describe('waitForUserInput', () => {
@@ -188,6 +195,16 @@ describe('ImageSourceCommand', () => {
       onClose(null);
     });
 
+    it('should not create popup for landscape figure inside existing landscape section', async () => {
+      command = new ImageSourceCommand({ withLandscapeSection: true });
+      const landscapeState = createStateInsideLandscapeSection(schema);
+
+      await command.waitForUserInput(landscapeState, dispatch, view);
+
+      expect(createPopUp).not.toHaveBeenCalled();
+      expect(dispatch).not.toHaveBeenCalled();
+    });
+
 
     it('should resolve with value when popup closes', async () => {
       const mockPopUp = {};
@@ -228,6 +245,22 @@ describe('ImageSourceCommand', () => {
       const insertedNode = tr.doc.child(1);
       expect(insertedNode.type.name).toBe('landscape_section');
       expect(insertedNode.firstChild.type.name).toBe('enhanced_table_figure');
+    });
+
+    it('should not insert landscape image figure inside existing landscape section', () => {
+      command = new ImageSourceCommand({ withLandscapeSection: true });
+      const landscapeState = createStateInsideLandscapeSection(schema);
+      const inputs = { src: 'test-image.jpg', alt: 'Test Image' };
+
+      const result = command.executeWithUserInput(
+        landscapeState,
+        dispatch,
+        view,
+        inputs
+      );
+
+      expect(result).toBe(false);
+      expect(dispatch).not.toHaveBeenCalled();
     });
 
     it('should handle null inputs', () => {
@@ -297,3 +330,16 @@ describe('ImageSourceCommand', () => {
     });
   });
 });
+
+function createStateInsideLandscapeSection(schema: Schema): EditorState {
+  const docNode = schema.nodes.doc.create({}, [
+    schema.nodes.landscape_section.create({}, [
+      schema.nodes.paragraph.create(),
+    ]),
+  ]);
+  const state = EditorState.create({ doc: docNode, schema });
+
+  return state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, 2))
+  );
+}

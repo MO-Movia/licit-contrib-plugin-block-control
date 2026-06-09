@@ -32,6 +32,10 @@ export class EnhancedTableCommands extends UICommand {
     dispatch?: (tr: Transaction) => void,
     view?: EditorView
   ): boolean => {
+    if (!this.__isEnabled(state, view)) {
+      return false;
+    }
+
     if (dispatch) {
       const { schema } = state;
       let { tr } = state;
@@ -73,11 +77,21 @@ export class EnhancedTableCommands extends UICommand {
     if (this._withLandscapeSection && !state.schema.nodes[LANDSCAPE_SECTION]) {
       return false;
     }
+    if (this._withLandscapeSection && isSelectionInsideLandscapeSection(state)) {
+      return false;
+    }
     return true;
   };
 
   // Command to insert the entire Enhanced Table/Figure node
   insertEnhancedTableFigure(tr, schema) {
+    if (
+      this._withLandscapeSection &&
+      isResolvedPosInsideLandscapeSection(tr.selection.$from)
+    ) {
+      return tr;
+    }
+
     const { selection } = tr;
     const { from, to } = selection;
     if (from !== to) {
@@ -163,6 +177,21 @@ export class EnhancedTableCommands extends UICommand {
     return tableNode;
   }
 
+}
+
+function isSelectionInsideLandscapeSection(state: EditorState): boolean {
+  return isResolvedPosInsideLandscapeSection(state.selection.$from);
+}
+
+function isResolvedPosInsideLandscapeSection($from): boolean {
+
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === LANDSCAPE_SECTION) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function addNotesCommand(tr, schema, pos) {

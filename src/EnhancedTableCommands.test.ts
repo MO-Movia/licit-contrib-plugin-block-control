@@ -105,6 +105,32 @@ describe('EnhancedTableCommands', () => {
         expect(insertedNode.firstChild.type.name).toBe('enhanced_table_figure');
     });
 
+    test('landscape table command is disabled inside existing landscape section', () => {
+        const landscapeCommand = new EnhancedTableCommands('table', {
+            withLandscapeSection: true,
+        });
+        const landscapeState = createStateInsideLandscapeSection();
+
+        expect(landscapeCommand.isEnabled(landscapeState)).toBe(false);
+    });
+
+    test('landscape table command does not insert inside existing landscape section', () => {
+        const landscapeCommand = new EnhancedTableCommands('table', {
+            withLandscapeSection: true,
+        });
+        const landscapeState = createStateInsideLandscapeSection();
+        const dispatch = jest.fn();
+
+        const result = landscapeCommand.execute(
+            landscapeState,
+            dispatch,
+            { focus: jest.fn() } as any
+        );
+
+        expect(result).toBe(false);
+        expect(dispatch).not.toHaveBeenCalled();
+    });
+
     test('insertEnhancedTableFigure returns unchanged tr when selection is not empty', () => {
         const state = EditorState.create({ schema });
         let tr = state.tr;
@@ -136,6 +162,19 @@ describe('EnhancedTableCommands', () => {
         expect(command.cancel()).toBeNull();
     });
 });
+
+function createStateInsideLandscapeSection(): EditorState {
+    const docNode = schema.nodes.doc.create({}, [
+        schema.nodes.landscape_section.create({}, [
+            schema.nodes.paragraph.create(),
+        ]),
+    ]);
+    const state = EditorState.create({ doc: docNode, schema });
+
+    return state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 2))
+    );
+}
 
 describe('addNotesCommand', () => {
     let state: EditorState;

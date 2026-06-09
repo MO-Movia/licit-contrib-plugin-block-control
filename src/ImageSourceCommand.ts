@@ -22,6 +22,10 @@ export function insertEnhancedImageFigure(
   altText = '',
   withLandscapeSection = false
 ) {
+  if (withLandscapeSection && isSelectionInsideLandscapeSection(tr.selection)) {
+    return tr;
+  }
+
   const { selection } = tr;
   const { from, to } = selection;
   if (from !== to) {
@@ -99,6 +103,10 @@ export class ImageSourceCommand extends UICommand {
     view: EditorView,
     _event?: React.SyntheticEvent
   ): Promise<unknown> => {
+    if (!this.__isEnabled(state, view)) {
+      return Promise.resolve(undefined);
+    }
+
     if (this._popUp) {
       return Promise.resolve(undefined);
     }
@@ -127,6 +135,10 @@ export class ImageSourceCommand extends UICommand {
     view: EditorView,
     inputs: ImageProps
   ): boolean => {
+    if (!this.__isEnabled(state, view)) {
+      return false;
+    }
+
     if (dispatch) {
       const { selection, schema } = state;
       let { tr } = state;
@@ -151,6 +163,9 @@ export class ImageSourceCommand extends UICommand {
 
   __isEnabled = (state: EditorState, _view: EditorView): boolean => {
     if (this._withLandscapeSection && !state.schema.nodes[LANDSCAPE_SECTION]) {
+      return false;
+    }
+    if (this._withLandscapeSection && isSelectionInsideLandscapeSection(state.selection)) {
       return false;
     }
 
@@ -181,4 +196,16 @@ export class ImageSourceCommand extends UICommand {
   executeCustomStyleForTable(_state: EditorState, tr: Transform, _from: number, _to: number): Transform {
     return tr;
   }
+}
+
+function isSelectionInsideLandscapeSection(selection): boolean {
+  const { $from } = selection;
+
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === LANDSCAPE_SECTION) {
+      return true;
+    }
+  }
+
+  return false;
 }
