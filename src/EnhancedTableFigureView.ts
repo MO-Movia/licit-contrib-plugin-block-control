@@ -63,6 +63,8 @@ function HamburgerMenuDropdownView({ menuItems }: HamburgerMenuDropdownProps): R
  * Encapsulates all commands related to figures
  */
 class FigureCommandRegistry {
+  private static readonly TITLE_STYLE_NAMES = new Set(['chFigureTitle', 'chTableTitle']);
+
   private readonly nodePos: number;
   private readonly node: ProseMirrorNode;
   private readonly view: EditorView;
@@ -73,76 +75,64 @@ class FigureCommandRegistry {
     this.view = view;
   }
 
-  /**
-   * Insert paragraph above the figure
-   *
-   * What's passed:
-   * - tr (Transaction): state.tr for mutations
-   * - pos (number): this.nodePos (position of figure)
-   * - schema: state.schema for creating nodes
-   */
   insertParagraphAbove(): void {
-    const { state, dispatch } = this.view;
-    const { schema } = state;
-
-    // Create empty paragraph node
-    const paragraph = schema.nodes.paragraph.create();
-
-    // Insert at the node position
-    let tr = state.tr.insert(this.nodePos, paragraph);
-
-    // Set cursor in the new paragraph
-    const resolvedPos = tr.doc.resolve(this.nodePos + 1);
-    tr = tr.setSelection(TextSelection.create(tr.doc, resolvedPos.pos));
-
-    dispatch(tr);
+    this.insertParagraph(this.getTitleAdjustedPosition_before(this.nodePos - 1, this.nodePos));
   }
 
-  /**
-   * Insert paragraph below the figure
-   *
-   * What's passed:
-   * - tr (Transaction): state.tr for mutations
-   * - pos (number): this.nodePos + this.node.nodeSize (position after figure)
-   * - schema: state.schema for creating nodes
-   */
   insertParagraphBelow(): void {
-    const { state, dispatch } = this.view;
-    const { schema } = state;
-
-    // Create empty paragraph node
-    const paragraph = schema.nodes.paragraph.create();
-
-    // Calculate position after the figure
     const posAfterNode = this.nodePos + this.node.nodeSize;
-
-    // Insert after the node
-    let tr = state.tr.insert(posAfterNode, paragraph);
-
-    // Set cursor in the new paragraph
-    const resolvedPos = tr.doc.resolve(posAfterNode + 1);
-    tr = tr.setSelection(TextSelection.create(tr.doc, resolvedPos.pos));
-
-    dispatch(tr);
+    this.insertParagraph(this.getTitleAdjustedPosition_after(posAfterNode));
   }
 
-  /**
-   * Delete the figure node
-   *
-   * What's passed:
-   * - pos (number): this.nodePos (start position)
-   * - endPos (number): this.nodePos + this.node.nodeSize (end position)
-   */
   deleteFigure(): void {
     const { state, dispatch } = this.view;
+    dispatch(state.tr.delete(this.nodePos, this.nodePos + this.node.nodeSize).scrollIntoView());
+  }
 
-    // Delete from start to end of node
-    const from = this.nodePos;
-    const to = this.nodePos + this.node.nodeSize;
-
-    const tr = state.tr.delete(from, to);
+  private insertParagraph(insertPos: number): void {
+    const { state, dispatch } = this.view;
+    const paragraph = state.schema.nodes.paragraph.create();
+    let tr = state.tr.insert(insertPos, paragraph);
+    tr = tr
+      .setSelection(TextSelection.create(tr.doc, insertPos + 1))
+      .scrollIntoView();
 
     dispatch(tr);
+    this.focusEditor();
+  }
+
+  private focusEditor(): void {
+    const focus = () => this.view.focus();
+    if (typeof queueMicrotask === 'function') {
+      queueMicrotask(focus);
+      return;
+    }
+
+    setTimeout(focus, 0);
+  }
+
+  private getTitleAdjustedPosition_before(resolvePos: number, fallbackPos: number): number {
+    if (resolvePos < 0 || resolvePos > this.view.state.doc.content.size) {
+      return fallbackPos;
+    }
+
+    const $pos = this.view.state.doc.resolve(resolvePos);
+    const styleName = $pos.parent?.attrs['styleName'];
+    if (!FigureCommandRegistry.TITLE_STYLE_NAMES.has(styleName)) {
+      return fallbackPos;
+    }
+
+    return resolvePos - ($pos.parentOffset + $pos.depth);
+  }
+  private getTitleAdjustedPosition_after(resolvePos: number): number {
+
+    const $pos = this.view.state.doc.resolve(resolvePos);
+    const styleName = $pos.nodeAfter?.attrs['styleName'];
+    if (!FigureCommandRegistry.TITLE_STYLE_NAMES.has(styleName)) {
+      return resolvePos;
+    }
+
+    return resolvePos + ($pos.nodeAfter?.nodeSize || 0);
   }
 }
 

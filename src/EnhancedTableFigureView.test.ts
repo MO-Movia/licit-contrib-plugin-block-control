@@ -26,6 +26,9 @@ jest.mock('@modusoperandi/licit-ui-commands', () => ({
 
 type MockNode = ProseMirrorNode & {
   attrs: Record<string, unknown>;
+  child: jest.Mock;
+  childCount: number;
+  content?: { size: number };
   forEach: jest.Mock;
   nodeSize: number;
   type: { name: string };
@@ -34,13 +37,15 @@ type MockNode = ProseMirrorNode & {
 type MockView = EditorView & {
   dispatch: jest.Mock;
   dom: HTMLElement;
+  focus: jest.Mock;
   state: {
-    doc: { nodeAt: jest.Mock };
+    doc: { content: { size: number }; nodeAt: jest.Mock; resolve: jest.Mock };
     schema: { nodes: { paragraph: { create: jest.Mock } } };
     tr: {
       delete: jest.Mock;
       doc: { resolve: jest.Mock };
       insert: jest.Mock;
+      scrollIntoView: jest.Mock;
       setNodeMarkup: jest.Mock;
       setSelection: jest.Mock;
     };
@@ -58,10 +63,31 @@ describe('EnhancedTableFigureView', () => {
       delete: jest.fn(() => tr),
       doc: { resolve: jest.fn((pos: number) => ({ pos })) },
       insert: jest.fn(() => tr),
+      scrollIntoView: jest.fn(() => tr),
       setNodeMarkup: jest.fn(() => tr),
       setSelection: jest.fn(() => tr),
     };
     return tr;
+  };
+
+  const createContentNode = (
+    typeName: string,
+    children: Array<Partial<MockNode>> = [],
+    nodeSize = 1
+  ): Partial<MockNode> => ({
+    child: jest.fn((index: number) => children[index]),
+    childCount: children.length,
+    content: { size: children.length },
+    nodeSize,
+    type: { name: typeName },
+  });
+
+  const setNodeChildren = (node: MockNode, children: Array<Partial<MockNode>>) => {
+    node.childCount = children.length;
+    node.child.mockImplementation((index: number) => children[index]);
+    node.forEach.mockImplementation((callback) =>
+      children.forEach((child, offset) => callback(child, offset))
+    );
   };
 
   const createMockNode = (attrs: Record<string, unknown> = {}): MockNode =>
@@ -72,6 +98,8 @@ describe('EnhancedTableFigureView', () => {
         orientation: 'portrait',
         ...attrs,
       },
+      child: jest.fn(),
+      childCount: 0,
       forEach: jest.fn(),
       nodeSize: 6,
       type: {
@@ -95,27 +123,19 @@ describe('EnhancedTableFigureView', () => {
   };
 
   const mockImageInFigure = (imageNode: { attrs: Record<string, unknown> }, nested = false) => {
-    const imageContent = {
-      content: { size: 0 },
-      type: { name: 'image' },
-    };
-    const nestedContent = {
-      content: {
-        forEach: (callback: (child: unknown, offset: number) => void) => callback(imageContent, 2),
-        size: 1,
-      },
-      type: { name: 'wrapper' },
-    };
-    const bodyNode = {
-      content: {
-        forEach: (callback: (child: unknown, offset: number) => void) =>
-          callback(nested ? nestedContent : imageContent, 3),
-        size: 1,
-      },
-      type: { name: 'enhanced_table_figure_body' },
-    };
+    const imageContent = createContentNode('image');
+    const nestedContent = createContentNode(
+      'wrapper',
+      [createContentNode('text', [], 2), imageContent],
+      4
+    );
+    const bodyNode = createContentNode(
+      'enhanced_table_figure_body',
+      [createContentNode('text', [], 3), nested ? nestedContent : imageContent],
+      6
+    );
 
-    mockNode.forEach.mockImplementation((callback) => callback(bodyNode, 0));
+    setNodeChildren(mockNode, [bodyNode]);
     mockView.state.doc.nodeAt.mockReturnValue(imageNode);
   };
 
@@ -130,8 +150,9 @@ describe('EnhancedTableFigureView', () => {
     mockView = {
       dispatch: jest.fn(),
       dom: editorDom,
+      focus: jest.fn(),
       state: {
-        doc: { nodeAt: jest.fn() },
+        doc: { content: { size: 100 }, nodeAt: jest.fn(), resolve: jest.fn((pos: number) => ({ pos })) },
         schema: { nodes: { paragraph: { create: jest.fn(() => 'paragraph-node') } } },
         tr: createMockTransaction(),
       },
@@ -216,9 +237,7 @@ describe('EnhancedTableFigureView', () => {
       let menuItems = openMenu();
       expect(menuItems.find((item) => item.id === 'add-notes')).toBeDefined();
 
-      mockNode.forEach.mockImplementation((callback) =>
-        callback({ type: { name: 'enhanced_table_figure_notes' } })
-      );
+      setNodeChildren(mockNode, [createContentNode('enhanced_table_figure_notes')]);
 
       menuItems = openMenu();
       expect(menuItems.find((item) => item.id === 'add-notes')).toBeUndefined();
@@ -255,18 +274,24 @@ describe('EnhancedTableFigureView', () => {
   });
 
   describe('menu actions', () => {
-    it('inserts paragraphs above and below the figure', () => {
+    it('inserts paragraphs above and below the figure', async () => {
       const menuItems = openMenu();
 
       menuItems.find((item) => item.id === 'insert-above')?.action();
       expect(mockView.state.tr.insert).toHaveBeenCalledWith(10, 'paragraph-node');
-      expect(mockView.state.tr.doc.resolve).toHaveBeenCalledWith(11);
       expect(TextSelection.create).toHaveBeenCalledWith(mockView.state.tr.doc, 11);
+      expect(mockView.state.tr.scrollIntoView).toHaveBeenCalledTimes(1);
       expect(mockView.dispatch).toHaveBeenCalledWith(mockView.state.tr);
+      expect(mockView.focus).not.toHaveBeenCalled();
+      await Promise.resolve();
+      expect(mockView.focus).toHaveBeenCalledTimes(1);
 
       menuItems.find((item) => item.id === 'insert-below')?.action();
       expect(mockView.state.tr.insert).toHaveBeenCalledWith(16, 'paragraph-node');
-      expect(mockView.state.tr.doc.resolve).toHaveBeenCalledWith(17);
+      expect(TextSelection.create).toHaveBeenCalledWith(mockView.state.tr.doc, 17);
+      expect(mockView.state.tr.scrollIntoView).toHaveBeenCalledTimes(2);
+      await Promise.resolve();
+      expect(mockView.focus).toHaveBeenCalledTimes(2);
     });
 
     it('deletes the figure', () => {
