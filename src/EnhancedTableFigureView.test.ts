@@ -539,6 +539,24 @@ describe('EnhancedTableFigureView', () => {
       expect(view.contentDOM.dataset.orientation).toBe('landscape');
     });
 
+    it('keeps wrapper DOM untouched when only child content changes', () => {
+      view.selectNode();
+      const setAttribute = jest.spyOn(view.dom, 'setAttribute');
+      const updatedNode = createMockNode({
+        figureType: 'table',
+        id: 'test-id',
+        orientation: 'portrait',
+      });
+      updatedNode.type = mockNode.type;
+      updatedNode.nodeSize = mockNode.nodeSize + 1;
+
+      expect(view.update(updatedNode)).toBe(true);
+
+      expect(view.node).toBe(updatedNode);
+      expect(setAttribute).not.toHaveBeenCalled();
+      expect(view.dom.className).toBe('enhanced-table-figure has-hover-handle ProseMirror-selectednode');
+    });
+
     it('returns false when update receives a different node type', () => {
       const differentNode = createMockNode();
       differentNode.type = { name: 'different_type' };

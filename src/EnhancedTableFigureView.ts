@@ -673,9 +673,25 @@ export class EnhancedTableFigureView implements NodeView {
       return false;
     }
 
+    const attrsChanged = !this.hasSameAttrs(this.node.attrs, node.attrs);
     this.node = node;
-    this.updateAttributes();
+    if (attrsChanged) {
+      this.updateAttributes();
+    }
     return true;
+  }
+
+  private hasSameAttrs(
+    currentAttrs: Record<string, unknown>,
+    nextAttrs: Record<string, unknown>
+  ): boolean {
+    const currentKeys = Object.keys(currentAttrs);
+    const nextKeys = Object.keys(nextAttrs);
+    if (currentKeys.length !== nextKeys.length) {
+      return false;
+    }
+
+    return currentKeys.every((key) => currentAttrs[key] === nextAttrs[key]);
   }
 
   private updateAttributes(): void {

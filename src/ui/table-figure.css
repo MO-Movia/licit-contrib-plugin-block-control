@@ -55,6 +55,15 @@
   display: none !important;
 }
 
+.export-pdf-mode .enhanced-table-figure-select-handle,
+.export-pdf-mode .enhanced-table-figure-maximize-button,
+.export-pdf-mode
+  .enhanced-table-figure.has-hover-handle:hover
+  .handle-hidden-on-hover {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 .image-viewer-overlay {
   position: fixed;
   inset: 0;

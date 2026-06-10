@@ -30,6 +30,10 @@ describe('Enhanced Table Figure Node Specs', () => {
     it('has correct content expression', () => {
       expect(enhancedTableFigureBodyNodeSpec.content).toBe('block+');
     });
+
+    it('is not selectable as a wrapper node', () => {
+      expect(enhancedTableFigureBodyNodeSpec.selectable).toBe(false);
+    });
   });
 
     it('returns correct DOM output with attrs', () => {
