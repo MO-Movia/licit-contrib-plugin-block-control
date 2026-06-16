@@ -26,7 +26,8 @@
   },
   "peerDependencies": {
     "@modusoperandi/licit-doc-attrs-step": "^1.0.3",
-    "@modusoperandi/licit-ui-commands": "^1.0.0"
+    "@modusoperandi/licit-ui-commands": "^1.0.0",
+    "react-image-crop": "^11.0.10"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",

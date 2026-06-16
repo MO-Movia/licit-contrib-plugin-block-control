@@ -1,5 +1,5 @@
 import { Fragment } from 'prosemirror-model';
-import { EditorState, TextSelection, Transaction } from 'prosemirror-state';
+import { EditorState, Selection, TextSelection, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { UICommand } from '@modusoperandi/licit-doc-attrs-step';
 import { Transform } from 'prosemirror-transform';
@@ -202,7 +202,7 @@ export function addNotesCommand(tr, schema, pos) {
   let notesExists = false;
   const children = [];
   const paragraph = schema.nodes.paragraph.create(
-    {},
+    { styleName: 'Normal' },
     schema.text('\u200B') // optional placeholder
   );
 
@@ -232,4 +232,47 @@ export function addNotesCommand(tr, schema, pos) {
 
   const newNode = node.type.create(node.attrs, Fragment.fromArray(newChildren));
   return tr.replaceWith(pos, pos + node.nodeSize, newNode);
+}
+
+function findParentNotes(selection) {
+  const { $from } = selection;
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const node = $from.node(depth);
+    if (node.type.name === ENHANCED_TABLE_FIGURE_NOTES) {
+      return {
+        node,
+        pos: $from.before(depth),
+      };
+    }
+  }
+
+  return null;
+}
+
+function isEmptyNotesNode(node): boolean {
+  return node.textContent.replaceAll('\u200B', '').trim().length === 0;
+}
+
+export function removeEmptyNotesCommand(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void
+): boolean {
+  const { selection } = state;
+  if (!selection.empty) {
+    return false;
+  }
+
+  const notes = findParentNotes(selection);
+  if (!notes || !isEmptyNotesNode(notes.node)) {
+    return false;
+  }
+
+  let tr = state.tr.delete(notes.pos, notes.pos + notes.node.nodeSize);
+  const selectionPos = Math.min(notes.pos, tr.doc.content.size);
+  tr = tr
+    .setSelection(Selection.near(tr.doc.resolve(selectionPos), -1))
+    .scrollIntoView();
+
+  dispatch?.(tr);
+  return true;
 }
