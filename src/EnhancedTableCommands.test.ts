@@ -1,7 +1,7 @@
 import { Schema, DOMParser, Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorState, TextSelection, Transaction } from 'prosemirror-state';
 import { Transform } from 'prosemirror-transform';
-import { EnhancedTableCommands, addNotesCommand } from './EnhancedTableCommands';
+import { EnhancedTableCommands, addNotesCommand, removeEmptyNotesCommand } from './EnhancedTableCommands';
 import { schema as basicSchema } from 'prosemirror-schema-basic';
 import { doc, p } from 'jest-prosemirror';
 
@@ -20,7 +20,7 @@ const nodes = basicSchema.spec.nodes.append({
         parseDOM: [{ tag: 'div' }],
     },
     enhanced_table_figure_notes: {
-        content: 'text*',
+        content: 'paragraph+',
         toDOM: () => ['div', 0],
         parseDOM: [{ tag: 'div' }],
     },
@@ -28,6 +28,12 @@ const nodes = basicSchema.spec.nodes.append({
         content: 'text*',
         toDOM: () => ['div', 0],
         parseDOM: [{ tag: 'div' }],
+    },
+    landscape_section: {
+        content: 'block+',
+        group: 'block',
+        toDOM: () => ['section', { class: 'section-landscape' }, 0],
+        parseDOM: [{ tag: 'section.section-landscape' }],
     },
     table: {
         content: 'table_row+',
@@ -81,6 +87,50 @@ describe('EnhancedTableCommands', () => {
         expect(view.focus).toHaveBeenCalled();
     });
 
+    test('execute inserts enhanced table figure inside landscape section', () => {
+        const landscapeCommand = new EnhancedTableCommands('table', {
+            withLandscapeSection: true,
+        });
+        const landscapeState = EditorState.create({
+            doc: schema.nodes.doc.create({}, [schema.nodes.paragraph.create()]),
+            schema,
+        });
+        const dispatch = jest.fn();
+
+        landscapeCommand.execute(landscapeState, dispatch, { focus: jest.fn() } as any);
+
+        const tr = dispatch.mock.calls[0][0];
+        const insertedNode = tr.doc.child(1);
+        expect(insertedNode.type.name).toBe('landscape_section');
+        expect(insertedNode.firstChild.type.name).toBe('enhanced_table_figure');
+    });
+
+    test('landscape table command is disabled inside existing landscape section', () => {
+        const landscapeCommand = new EnhancedTableCommands('table', {
+            withLandscapeSection: true,
+        });
+        const landscapeState = createStateInsideLandscapeSection();
+
+        expect(landscapeCommand.isEnabled(landscapeState)).toBe(false);
+    });
+
+    test('landscape table command does not insert inside existing landscape section', () => {
+        const landscapeCommand = new EnhancedTableCommands('table', {
+            withLandscapeSection: true,
+        });
+        const landscapeState = createStateInsideLandscapeSection();
+        const dispatch = jest.fn();
+
+        const result = landscapeCommand.execute(
+            landscapeState,
+            dispatch,
+            { focus: jest.fn() } as any
+        );
+
+        expect(result).toBe(false);
+        expect(dispatch).not.toHaveBeenCalled();
+    });
+
     test('insertEnhancedTableFigure returns unchanged tr when selection is not empty', () => {
         const state = EditorState.create({ schema });
         let tr = state.tr;
@@ -113,6 +163,19 @@ describe('EnhancedTableCommands', () => {
     });
 });
 
+function createStateInsideLandscapeSection(): EditorState {
+    const docNode = schema.nodes.doc.create({}, [
+        schema.nodes.landscape_section.create({}, [
+            schema.nodes.paragraph.create(),
+        ]),
+    ]);
+    const state = EditorState.create({ doc: docNode, schema });
+
+    return state.apply(
+        state.tr.setSelection(TextSelection.create(state.doc, 2))
+    );
+}
+
 describe('addNotesCommand', () => {
     let state: EditorState;
     let tr: Transform;
@@ -138,7 +201,8 @@ describe('addNotesCommand', () => {
     });
 
     test('does not add notes when already present', () => {
-        const notesNode = schema.nodes.enhanced_table_figure_notes.create({}, schema.text('Note'));
+        const notesParagraph = schema.nodes.paragraph.create({}, schema.text('Note'));
+        const notesNode = schema.nodes.enhanced_table_figure_notes.create({}, notesParagraph);
         const tableNode = schema.nodes.table.createAndFill();
         const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, tableNode);
         const capcoNode = schema.nodes.enhanced_table_figure_capco.create({}, schema.text('Footer'));
@@ -159,5 +223,72 @@ describe('addNotesCommand', () => {
 
         const result = addNotesCommand(tr, schema, pos);
         expect(result).toBe(tr);
+    });
+});
+
+describe('removeEmptyNotesCommand', () => {
+    const createStateWithNotes = (noteText = '\u200B') => {
+        const tableNode = schema.nodes.table.createAndFill();
+        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, tableNode);
+        const notesParagraph = schema.nodes.paragraph.create(
+            {},
+            noteText ? schema.text(noteText) : undefined
+        );
+        const notesNode = schema.nodes.enhanced_table_figure_notes.create({}, notesParagraph);
+        const capcoNode = schema.nodes.enhanced_table_figure_capco.create({}, schema.text('Footer'));
+        const figureNode = schema.nodes.enhanced_table_figure.create({}, [bodyNode, notesNode, capcoNode]);
+        const docNode = schema.nodes.doc.create({}, [figureNode]);
+        let state = EditorState.create({ doc: docNode, schema });
+
+        const notesPos = findNodePos(docNode, 'enhanced_table_figure_notes');
+        state = state.apply(
+            state.tr.setSelection(TextSelection.create(state.doc, notesPos + 2))
+        );
+
+        return state;
+    };
+
+    const findNodePos = (docNode: ProseMirrorNode, typeName: string): number => {
+        let foundPos = -1;
+        docNode.descendants((node, nodePos) => {
+            if (node.type.name === typeName) {
+                foundPos = nodePos;
+                return false;
+            }
+            return true;
+        });
+        return foundPos;
+    };
+
+    test('removes empty notes when selection is inside notes', () => {
+        const state = createStateWithNotes();
+        const dispatch = jest.fn();
+
+        const result = removeEmptyNotesCommand(state, dispatch);
+
+        expect(result).toBe(true);
+        expect(dispatch).toHaveBeenCalledTimes(1);
+        const dispatchedTr = dispatch.mock.calls[0][0] as Transaction;
+        expect(findNodePos(dispatchedTr.doc, 'enhanced_table_figure_notes')).toBe(-1);
+    });
+
+    test('keeps notes that contain text', () => {
+        const state = createStateWithNotes('Note');
+        const dispatch = jest.fn();
+
+        const result = removeEmptyNotesCommand(state, dispatch);
+
+        expect(result).toBe(false);
+        expect(dispatch).not.toHaveBeenCalled();
+    });
+
+    test('ignores selections outside notes', () => {
+        const state = EditorState.create({ doc: p('Outside'), schema });
+        const dispatch = jest.fn();
+
+        const result = removeEmptyNotesCommand(state, dispatch);
+
+        expect(result).toBe(false);
+        expect(dispatch).not.toHaveBeenCalled();
     });
 });

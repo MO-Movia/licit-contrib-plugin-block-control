@@ -9,12 +9,23 @@ import {
 } from './CursorPlaceholderPlugin';
 import { UICommand } from '@modusoperandi/licit-doc-attrs-step';
 import { createPopUp, PopUpHandle } from '@modusoperandi/licit-ui-commands';
+import { LANDSCAPE_SECTION } from './Constants';
 
 import type { ImageProps } from './Types';
 
 
 // Command to insert the Enhanced Table/Figure node (for image)
-export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
+export function insertEnhancedImageFigure(
+  tr,
+  schema,
+  imageUrl,
+  altText = '',
+  withLandscapeSection = false
+) {
+  if (withLandscapeSection && isSelectionInsideLandscapeSection(tr.selection)) {
+    return tr;
+  }
+
   const { selection } = tr;
   const { from, to } = selection;
   if (from !== to) {
@@ -50,14 +61,18 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
   const content = Fragment.fromArray([bodyNode, capcoNode]);
   // Set the figureType to 'figure'.
   const figureNode = figureNodeType.create({ figureType: 'figure', orientation: 'landscape' }, content);
+  const landscapeNodeType = schema.nodes[LANDSCAPE_SECTION];
+  const insertNode = withLandscapeSection && landscapeNodeType
+    ? landscapeNodeType.create(null, figureNode)
+    : figureNode;
 
   // Insert the figure node.
-  tr = tr.insert(from, figureNode);
+  tr = tr.insert(from, insertNode);
 
   // Insert a new paragraph after the figure.
   const paragraphNode = schema.nodes.paragraph.createAndFill();
   if (paragraphNode) {
-    const after = from + figureNode.nodeSize;
+    const after = from + insertNode.nodeSize;
     tr = tr.insert(after, paragraphNode);
     tr = tr.setSelection(TextSelection.create(tr.doc, after + 1));
   }
@@ -67,6 +82,12 @@ export function insertEnhancedImageFigure(tr, schema, imageUrl, altText = '') {
 
 export class ImageSourceCommand extends UICommand {
   _popUp?: PopUpHandle;
+  _withLandscapeSection: boolean;
+
+  constructor(options?: { withLandscapeSection?: boolean }) {
+    super();
+    this._withLandscapeSection = !!options?.withLandscapeSection;
+  }
 
   getEditor(): typeof React.Component {
     return undefined;
@@ -82,6 +103,10 @@ export class ImageSourceCommand extends UICommand {
     view: EditorView,
     _event?: React.SyntheticEvent
   ): Promise<unknown> => {
+    if (!this.__isEnabled(state, view)) {
+      return Promise.resolve(undefined);
+    }
+
     if (this._popUp) {
       return Promise.resolve(undefined);
     }
@@ -110,6 +135,10 @@ export class ImageSourceCommand extends UICommand {
     view: EditorView,
     inputs: ImageProps
   ): boolean => {
+    if (!this.__isEnabled(state, view)) {
+      return false;
+    }
+
     if (dispatch) {
       const { selection, schema } = state;
       let { tr } = state;
@@ -117,7 +146,13 @@ export class ImageSourceCommand extends UICommand {
       tr = tr.setSelection(selection);
       if (inputs) {
         const { src } = inputs;
-        tr = insertEnhancedImageFigure(tr, schema, src) as Transaction;
+        tr = insertEnhancedImageFigure(
+          tr,
+          schema,
+          src,
+          '',
+          this._withLandscapeSection
+        ) as Transaction;
       }
       dispatch(tr);
       view?.focus();
@@ -127,6 +162,13 @@ export class ImageSourceCommand extends UICommand {
   };
 
   __isEnabled = (state: EditorState, _view: EditorView): boolean => {
+    if (this._withLandscapeSection && !state.schema.nodes[LANDSCAPE_SECTION]) {
+      return false;
+    }
+    if (this._withLandscapeSection && isSelectionInsideLandscapeSection(state.selection)) {
+      return false;
+    }
+
     const tr = state;
     const { selection } = tr;
     if (selection instanceof TextSelection) {
@@ -154,4 +196,16 @@ export class ImageSourceCommand extends UICommand {
   executeCustomStyleForTable(_state: EditorState, tr: Transform, _from: number, _to: number): Transform {
     return tr;
   }
+}
+
+function isSelectionInsideLandscapeSection(selection): boolean {
+  const { $from } = selection;
+
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === LANDSCAPE_SECTION) {
+      return true;
+    }
+  }
+
+  return false;
 }

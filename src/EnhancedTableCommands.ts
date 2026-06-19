@@ -1,17 +1,19 @@
 import { Fragment } from 'prosemirror-model';
-import { EditorState, TextSelection, Transaction } from 'prosemirror-state';
+import { EditorState, Selection, TextSelection, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { UICommand } from '@modusoperandi/licit-doc-attrs-step';
 import { Transform } from 'prosemirror-transform';
-import { PARAGRAPH, TABLE, TABLE_CELL, TABLE_ROW, ENHANCED_TABLE_FIGURE_BODY, ENHANCED_TABLE_FIGURE_NOTES, ENHANCED_TABLE_FIGURE } from './Constants';
+import { PARAGRAPH, TABLE, TABLE_CELL, TABLE_ROW, ENHANCED_TABLE_FIGURE_BODY, ENHANCED_TABLE_FIGURE_NOTES, ENHANCED_TABLE_FIGURE, LANDSCAPE_SECTION } from './Constants';
 
 export class EnhancedTableCommands extends UICommand {
   // image,table
   _nodeType: string;
+  _withLandscapeSection: boolean;
 
-  constructor(type: string) {
+  constructor(type: string, options?: { withLandscapeSection?: boolean }) {
     super();
     this._nodeType = type;
+    this._withLandscapeSection = !!options?.withLandscapeSection;
   }
   executeCustom(_state: EditorState, tr: Transform, _from: number, _to: number): Transform {
     return tr;
@@ -30,6 +32,10 @@ export class EnhancedTableCommands extends UICommand {
     dispatch?: (tr: Transaction) => void,
     view?: EditorView
   ): boolean => {
+    if (!this.__isEnabled(state, view)) {
+      return false;
+    }
+
     if (dispatch) {
       const { schema } = state;
       let { tr } = state;
@@ -67,12 +73,25 @@ export class EnhancedTableCommands extends UICommand {
     return null;
   }
 
-  __isEnabled = (_state: EditorState, _view?: EditorView): boolean => {
+  __isEnabled = (state: EditorState, _view?: EditorView): boolean => {
+    if (this._withLandscapeSection && !state.schema.nodes[LANDSCAPE_SECTION]) {
+      return false;
+    }
+    if (this._withLandscapeSection && isSelectionInsideLandscapeSection(state)) {
+      return false;
+    }
     return true;
   };
 
   // Command to insert the entire Enhanced Table/Figure node
   insertEnhancedTableFigure(tr, schema) {
+    if (
+      this._withLandscapeSection &&
+      isResolvedPosInsideLandscapeSection(tr.selection.$from)
+    ) {
+      return tr;
+    }
+
     const { selection } = tr;
     const { from, to } = selection;
     if (from !== to) {
@@ -99,19 +118,33 @@ export class EnhancedTableCommands extends UICommand {
     // Assemble the composite in the order: [body, (notes optional), capco]
     const content = Fragment.fromArray([bodyNode, capcoNode]);
     const figureNode = figureNodeType.create({ figureType: 'table', orientation: 'landscape' }, content);
+    const insertNode = this._wrapInLandscapeSection(schema, figureNode) || figureNode;
 
     // Insert the figure node at the current selection.
-    tr = tr.insert(from, figureNode);
+    tr = tr.insert(from, insertNode);
 
 
     const para = schema.nodes.paragraph.createAndFill();
     if (para) {
-      const after = from + figureNode.nodeSize;
+      const after = from + insertNode.nodeSize;
       tr = tr.insert(after, para);
       tr = tr.setSelection(TextSelection.create(tr.doc, after + 1));
     }
 
     return tr;
+  }
+
+  _wrapInLandscapeSection(schema, figureNode) {
+    if (!this._withLandscapeSection) {
+      return null;
+    }
+
+    const landscapeType = schema.nodes[LANDSCAPE_SECTION];
+    if (!landscapeType) {
+      return null;
+    }
+
+    return landscapeType.create(null, figureNode);
   }
 
 
@@ -146,6 +179,21 @@ export class EnhancedTableCommands extends UICommand {
 
 }
 
+function isSelectionInsideLandscapeSection(state: EditorState): boolean {
+  return isResolvedPosInsideLandscapeSection(state.selection.$from);
+}
+
+function isResolvedPosInsideLandscapeSection($from): boolean {
+
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === LANDSCAPE_SECTION) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function addNotesCommand(tr, schema, pos) {
   const node = tr.doc.nodeAt(pos);
   if (!node || node.type.name !== ENHANCED_TABLE_FIGURE) return tr;
@@ -154,7 +202,7 @@ export function addNotesCommand(tr, schema, pos) {
   let notesExists = false;
   const children = [];
   const paragraph = schema.nodes.paragraph.create(
-    {},
+    { styleName: 'Normal' },
     schema.text('\u200B') // optional placeholder
   );
 
@@ -184,4 +232,47 @@ export function addNotesCommand(tr, schema, pos) {
 
   const newNode = node.type.create(node.attrs, Fragment.fromArray(newChildren));
   return tr.replaceWith(pos, pos + node.nodeSize, newNode);
+}
+
+function findParentNotes(selection) {
+  const { $from } = selection;
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const node = $from.node(depth);
+    if (node.type.name === ENHANCED_TABLE_FIGURE_NOTES) {
+      return {
+        node,
+        pos: $from.before(depth),
+      };
+    }
+  }
+
+  return null;
+}
+
+function isEmptyNotesNode(node): boolean {
+  return node.textContent.replaceAll('\u200B', '').trim().length === 0;
+}
+
+export function removeEmptyNotesCommand(
+  state: EditorState,
+  dispatch?: (tr: Transaction) => void
+): boolean {
+  const { selection } = state;
+  if (!selection.empty) {
+    return false;
+  }
+
+  const notes = findParentNotes(selection);
+  if (!notes || !isEmptyNotesNode(notes.node)) {
+    return false;
+  }
+
+  let tr = state.tr.delete(notes.pos, notes.pos + notes.node.nodeSize);
+  const selectionPos = Math.min(notes.pos, tr.doc.content.size);
+  tr = tr
+    .setSelection(Selection.near(tr.doc.resolve(selectionPos), -1))
+    .scrollIntoView();
+
+  dispatch?.(tr);
+  return true;
 }

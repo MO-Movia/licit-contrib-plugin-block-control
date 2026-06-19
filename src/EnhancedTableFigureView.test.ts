@@ -1,313 +1,594 @@
-import { EnhancedTableFigureView } from './EnhancedTableFigureView';
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorView } from 'prosemirror-view';
-import { NodeSelection, TextSelection } from 'prosemirror-state';
-import { ImageInlineEditor } from './ui/ImageInlineEditor';
+import { TextSelection } from 'prosemirror-state';
+import { addNotesCommand } from './EnhancedTableCommands';
+import { createPopUp } from '@modusoperandi/licit-ui-commands';
+import { EnhancedTableFigureView } from './EnhancedTableFigureView';
 
-// Mock dependencies
 jest.mock('prosemirror-model');
 jest.mock('prosemirror-view');
-jest.mock('prosemirror-state');
-jest.mock('./EnhancedTableCommands');
-jest.mock('@modusoperandi/licit-ui-commands');
-jest.mock('./ui/ImageInlineEditor');
+jest.mock('prosemirror-state', () => ({
+  TextSelection: {
+    create: jest.fn(() => 'text-selection'),
+  },
+}));
+jest.mock('./EnhancedTableCommands', () => ({
+  addNotesCommand: jest.fn(() => 'notes-transaction'),
+}));
+jest.mock('@modusoperandi/licit-ui-commands', () => ({
+  atAnchorTopCenter: jest.fn(),
+  createPopUp: jest.fn(() => ({ close: jest.fn() })),
+  uuid: jest.fn(() => 'test-view-id'),
+}));
+
+type MockNode = ProseMirrorNode & {
+  attrs: Record<string, unknown>;
+  child: jest.Mock;
+  childCount: number;
+  content?: { size: number };
+  forEach: jest.Mock;
+  nodeSize: number;
+  type: { name: string };
+};
+
+type MockView = EditorView & {
+  dispatch: jest.Mock;
+  dom: HTMLElement;
+  focus: jest.Mock;
+  state: {
+    doc: { content: { size: number }; nodeAt: jest.Mock; resolve: jest.Mock };
+    schema: { nodes: { paragraph: { create: jest.Mock } } };
+    tr: {
+      delete: jest.Mock;
+      doc: { resolve: jest.Mock };
+      insert: jest.Mock;
+      scrollIntoView: jest.Mock;
+      setNodeMarkup: jest.Mock;
+      setSelection: jest.Mock;
+    };
+  };
+};
 
 describe('EnhancedTableFigureView', () => {
-  let mockNode: ProseMirrorNode;
-  let mockView: EditorView;
+  let mockNode: MockNode;
+  let mockView: MockView;
   let mockGetPos: jest.Mock;
   let view: EnhancedTableFigureView;
 
-  beforeEach(() => {
-    // Reset all mocks
-    jest.clearAllMocks();
+  const createMockTransaction = () => {
+    const tr = {
+      delete: jest.fn(() => tr),
+      doc: { resolve: jest.fn((pos: number) => ({ pos })) },
+      insert: jest.fn(() => tr),
+      scrollIntoView: jest.fn(() => tr),
+      setNodeMarkup: jest.fn(() => tr),
+      setSelection: jest.fn(() => tr),
+    };
+    return tr;
+  };
 
-    // Setup mock node
-    mockNode = {
+  const createContentNode = (
+    typeName: string,
+    children: Array<Partial<MockNode>> = [],
+    nodeSize = 1
+  ): Partial<MockNode> => ({
+    child: jest.fn((index: number) => children[index]),
+    childCount: children.length,
+    content: { size: children.length },
+    nodeSize,
+    type: { name: typeName },
+  });
+
+  const setNodeChildren = (node: MockNode, children: Array<Partial<MockNode>>) => {
+    node.childCount = children.length;
+    node.child.mockImplementation((index: number) => children[index]);
+    node.forEach.mockImplementation((callback) =>
+      children.forEach((child, offset) => callback(child, offset))
+    );
+  };
+
+  const createMockNode = (attrs: Record<string, unknown> = {}): MockNode =>
+    ({
       attrs: {
-        id: 'test-id',
         figureType: 'table',
+        id: 'test-id',
         orientation: 'portrait',
+        ...attrs,
       },
+      child: jest.fn(),
+      childCount: 0,
+      forEach: jest.fn(),
+      nodeSize: 6,
       type: {
         name: 'enhanced_table_figure',
       },
-      forEach: jest.fn(),
-    } as unknown as ProseMirrorNode;
+    }) as unknown as MockNode;
 
-    // Setup mock view
+  const getLastPopUpCall = () => {
+    const createPopUpMock = createPopUp as jest.Mock;
+    return createPopUpMock.mock.calls[createPopUpMock.mock.calls.length - 1];
+  };
+
+  const openMenu = () => {
+    view['handleHamburgerMenuClick'](new Event('click'));
+    return getLastPopUpCall()[1].menuItems as Array<{
+      action: () => void;
+      disabled?: boolean;
+      id: string;
+      label: string;
+    }>;
+  };
+
+  const mockImageInFigure = (imageNode: { attrs: Record<string, unknown> }, nested = false) => {
+    const imageContent = createContentNode('image');
+    const nestedContent = createContentNode(
+      'wrapper',
+      [createContentNode('text', [], 2), imageContent],
+      4
+    );
+    const bodyNode = createContentNode(
+      'enhanced_table_figure_body',
+      [createContentNode('text', [], 3), nested ? nestedContent : imageContent],
+      6
+    );
+
+    setNodeChildren(mockNode, [bodyNode]);
+    mockView.state.doc.nodeAt.mockReturnValue(imageNode);
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    const parentElement = document.createElement('section');
+    const editorDom = document.createElement('div');
+    parentElement.appendChild(editorDom);
+
+    mockNode = createMockNode();
     mockView = {
-      state: {
-        tr: {},
-        schema: {},
-        selection: {},
-        doc: {},
-      },
       dispatch: jest.fn(),
-    } as unknown as EditorView;
-
+      dom: editorDom,
+      focus: jest.fn(),
+      state: {
+        doc: { content: { size: 100 }, nodeAt: jest.fn(), resolve: jest.fn((pos: number) => ({ pos })) },
+        schema: { nodes: { paragraph: { create: jest.fn(() => 'paragraph-node') } } },
+        tr: createMockTransaction(),
+      },
+    } as unknown as MockView;
     mockGetPos = jest.fn().mockReturnValue(10);
 
-    // Create instance
     view = new EnhancedTableFigureView(mockNode, mockView, mockGetPos);
   });
 
-  describe('constructor', () => {
-    it('should initialize with correct DOM structure', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('constructor and handles', () => {
+    it('initializes with the expected DOM structure for a table', () => {
       expect(view.dom).toBeDefined();
-      expect(view.dom.tagName).toBe('DIV');
+      expect(view.dom.id).toBe('test-view-id');
       expect(view.dom.className).toBe('enhanced-table-figure has-hover-handle');
       expect(view.dom.getAttribute('data-type')).toBe('enhanced-table-figure');
       expect(view.dom.getAttribute('data-id')).toBe('test-id');
       expect(view.dom.getAttribute('data-figure-type')).toBe('table');
-
-      expect(view.contentDOM).toBeDefined();
       expect(view.contentDOM.parentElement).toBe(view.dom);
-      expect(view.contentDOM.className).toBe('enhanced-table-figure-content');
-
-      expect(view.addNotesButton).toBeDefined();
-      expect(view.selectHandle).toBeDefined();
+      expect(view.contentDOM.dataset.orientation).toBe('portrait');
+      expect(view.dom.querySelector('.enhanced-table-figure-maximize-button')).toBeNull();
     });
 
-    it('should set correct styles for portrait orientation', () => {
-      expect(view.dom.style.width).toBe('624px');
-      expect(view.dom.style.maxWidth).toBe('624px');
-      expect(view.contentDOM.style.width).toBe('100%');
+    it('creates a maximize handle for non-table figures and handles keyboard activation', () => {
+      const figureNode = createMockNode({ figureType: 'figure' });
+      const figureView = new EnhancedTableFigureView(figureNode, mockView, mockGetPos);
+      const maximizeButton = figureView.dom.querySelector(
+        '.enhanced-table-figure-maximize-button'
+      ) as HTMLElement;
+
+      expect(maximizeButton).toBeTruthy();
+
+      maximizeButton.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+
+      const [Component, props, options] = getLastPopUpCall();
+      expect(Component.name).toBe('ImageViewer');
+      expect(props.nodeViewDom.className).toBe('enhanced-table-figure');
+      expect(options.anchor).toBe(mockView.dom.parentElement);
     });
 
-    it('should set correct styles for landscape orientation', () => {
-      const landscapeNode = {
-        ...mockNode,
-        attrs: {
-          ...mockNode.attrs,
-          orientation: 'landscape',
-        },
-      };
-      const landscapeView = new EnhancedTableFigureView(landscapeNode, mockView, mockGetPos);
+    it('opens the hamburger menu from mouse and keyboard events', () => {
+      const handle = view.dom.querySelector('.enhanced-table-figure-select-handle') as HTMLElement;
 
-      expect(landscapeView.dom.style.width).toBe('624px');
-      expect(landscapeView.dom.style.maxWidth).toBe('624px');
-      expect(landscapeView.contentDOM.style.width).toBe('100%');
+      fireEvent.click(handle);
+      expect(getLastPopUpCall()[1].menuItems).toHaveLength(4);
+
+      handle.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: ' ' }));
+      expect(getLastPopUpCall()[1].menuItems).toHaveLength(4);
     });
   });
 
-  describe('update', () => {
-    it('should return false for different node type', () => {
-      const differentNode = {
-        ...mockNode,
-        type: {
-          name: 'different_type',
-        },
-      };
-      const result = view.update(differentNode as ProseMirrorNode);
-      expect(result).toBe(false);
+  describe('hamburger menu', () => {
+    it('renders menu items and invokes only enabled actions', () => {
+      const action = jest.fn();
+      const disabledAction = jest.fn();
+      view['handleHamburgerMenuClick'](new Event('click'));
+
+      const MenuComponent = getLastPopUpCall()[0];
+      render(
+        React.createElement(MenuComponent, {
+          close: jest.fn(),
+          menuItems: [
+            { action, disabled: false, icon: 'arrow_upward', id: 'enabled', label: 'Enabled' },
+            { action: disabledAction, disabled: true, icon: 'delete', id: 'disabled', label: 'Disabled' },
+          ],
+        })
+      );
+
+      expect(screen.getByText('arrow_upward')).toHaveClass('molm-czi-icon');
+      expect(screen.getByText('delete')).toHaveClass('molm-czi-icon');
+      fireEvent.click(screen.getByText('Enabled'));
+      fireEvent.click(screen.getByText('Disabled'));
+
+      expect(action).toHaveBeenCalledTimes(1);
+      expect(disabledAction).not.toHaveBeenCalled();
     });
 
-    it('should update node and return true for same type', () => {
-      const updatedNode = {
-        ...mockNode,
-        attrs: {
-          ...mockNode.attrs,
-          id: 'new-id',
-          figureType: 'figure',
-        },
+    it('includes add notes for a table without notes and excludes it when notes exist', () => {
+      let menuItems = openMenu();
+      expect(menuItems.find((item) => item.id === 'add-notes')).toBeDefined();
+
+      setNodeChildren(mockNode, [createContentNode('enhanced_table_figure_notes')]);
+
+      menuItems = openMenu();
+      expect(menuItems.find((item) => item.id === 'add-notes')).toBeUndefined();
+    });
+
+    it('shows the full image menu for figure nodes', () => {
+      const figureNode = createMockNode({ figureType: 'figure' });
+      const figureView = new EnhancedTableFigureView(figureNode, mockView, mockGetPos);
+
+      figureView['handleHamburgerMenuClick'](new Event('click'));
+
+      const menuItems = getLastPopUpCall()[1].menuItems as Array<{ id: string }>;
+      expect(menuItems.map((item) => item.id)).toEqual([
+        'insert-above',
+        'insert-below',
+        'choose-file',
+        'paste-clipboard',
+        'add-notes',
+        'crop',
+        'reset-crop',
+        'delete',
+      ]);
+    });
+
+    it('does not include add notes for non-table and non-figure types', () => {
+      const otherNode = createMockNode({ figureType: 'other' });
+      const otherView = new EnhancedTableFigureView(otherNode, mockView, mockGetPos);
+
+      otherView['handleHamburgerMenuClick'](new Event('click'));
+
+      const menuItems = getLastPopUpCall()[1].menuItems as Array<{ id: string }>;
+      expect(menuItems.find((item) => item.id === 'add-notes')).toBeUndefined();
+    });
+  });
+
+  describe('menu actions', () => {
+    it('inserts paragraphs above and below the figure', async () => {
+      const menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'insert-above')?.action();
+      expect(mockView.state.tr.insert).toHaveBeenCalledWith(10, 'paragraph-node');
+      expect(TextSelection.create).toHaveBeenCalledWith(mockView.state.tr.doc, 11);
+      expect(mockView.state.tr.scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(mockView.dispatch).toHaveBeenCalledWith(mockView.state.tr);
+      expect(mockView.focus).not.toHaveBeenCalled();
+      await Promise.resolve();
+      expect(mockView.focus).toHaveBeenCalledTimes(1);
+
+      menuItems.find((item) => item.id === 'insert-below')?.action();
+      expect(mockView.state.tr.insert).toHaveBeenCalledWith(16, 'paragraph-node');
+      expect(TextSelection.create).toHaveBeenCalledWith(mockView.state.tr.doc, 17);
+      expect(mockView.state.tr.scrollIntoView).toHaveBeenCalledTimes(2);
+      await Promise.resolve();
+      expect(mockView.focus).toHaveBeenCalledTimes(2);
+    });
+
+    it('deletes the figure', () => {
+      const menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'delete')?.action();
+
+      expect(mockView.state.tr.delete).toHaveBeenCalledWith(10, 16);
+      expect(mockView.dispatch).toHaveBeenCalledWith(mockView.state.tr);
+    });
+
+    it('adds notes through the command', () => {
+      const menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'add-notes')?.action();
+
+      expect(addNotesCommand).toHaveBeenCalledWith(mockView.state.tr, mockView.state.schema, 10);
+      expect(mockView.dispatch).toHaveBeenCalledWith('notes-transaction');
+    });
+
+    it('opens crop and dispatches confirmed crop data', () => {
+      const createPopUpMock = createPopUp as jest.Mock;
+      mockNode.attrs.figureType = 'figure';
+      const imageNode = { attrs: { cropData: null, src: 'data:image/png;base64,original' } };
+      mockImageInFigure(imageNode);
+      const menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'crop')?.action();
+
+      const popupHandle = createPopUpMock.mock.results.at(-1)?.value;
+      const cropProps = getLastPopUpCall()[1];
+      const cropData = {
+        croppedBase64: 'data:image/png;base64,cropped',
+        height: 20,
+        left: 1,
+        top: 2,
+        width: 30,
       };
-      const result = view.update(updatedNode as unknown as ProseMirrorNode);
-      expect(result).toBe(true);
+      cropProps.onConfirm(cropData);
+
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(15, null, {
+        cropData,
+        src: 'data:image/png;base64,original',
+      });
+      expect(popupHandle.close).toHaveBeenCalledWith(cropData);
+      expect(mockView.dispatch).toHaveBeenCalledWith(mockView.state.tr);
+    });
+
+    it('closes crop without dispatching on cancel', () => {
+      const createPopUpMock = createPopUp as jest.Mock;
+      mockNode.attrs.figureType = 'figure';
+      const imageNode = { attrs: { src: 'data:image/png;base64,original' } };
+      mockImageInFigure(imageNode);
+      const menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'crop')?.action();
+      const popupHandle = createPopUpMock.mock.results.at(-1)?.value;
+
+      getLastPopUpCall()[1].onCancel();
+
+      expect(popupHandle.close).toHaveBeenCalledWith(null);
+      expect(mockView.dispatch).not.toHaveBeenCalledWith(mockView.state.tr);
+    });
+
+    it('does not open crop when no image exists', () => {
+      const createPopUpMock = createPopUp as jest.Mock;
+      mockNode.attrs.figureType = 'figure';
+      mockNode.forEach.mockImplementation(jest.fn());
+      const menuItems = openMenu();
+      const callsBeforeCrop = createPopUpMock.mock.calls.length;
+
+      menuItems.find((item) => item.id === 'crop')?.action();
+
+      expect(createPopUpMock.mock.calls).toHaveLength(callsBeforeCrop);
+    });
+
+    it('resets direct and nested image crop data', () => {
+      mockNode.attrs.figureType = 'figure';
+      const imageNode = { attrs: { cropData: { left: 1 }, src: 'image-src' } };
+      mockImageInFigure(imageNode, true);
+      const menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'reset-crop')?.action();
+
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(18, undefined, {
+        cropData: null,
+        src: 'image-src',
+      });
+      expect(mockView.dispatch).toHaveBeenCalledWith(mockView.state.tr);
+    });
+
+    it('does not reset crop when the resolved image node is missing', () => {
+      mockNode.attrs.figureType = 'figure';
+      mockImageInFigure({ attrs: {} });
+      mockView.state.doc.nodeAt.mockReturnValue(null);
+      const menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'reset-crop')?.action();
+
+      expect(mockView.state.tr.setNodeMarkup).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('image source updates', () => {
+    const setClipboard = (clipboard: unknown) => {
+      Object.defineProperty(window.navigator, 'clipboard', {
+        configurable: true,
+        get: () => clipboard,
+      });
+    };
+
+    class MockFileReader {
+      onload: ((event: { target: { result: string } }) => void) | null = null;
+
+      readAsDataURL = jest.fn(() => {
+        this.onload?.({ target: { result: 'data:image/png;base64,new' } });
+      });
+    }
+
+    beforeEach(() => {
+      Object.defineProperty(global, 'FileReader', {
+        configurable: true,
+        value: MockFileReader,
+      });
+    });
+
+    it('updates the image source from a selected file', () => {
+      mockNode.attrs.figureType = 'figure';
+      const imageNode = { attrs: { src: 'old-src' } };
+      mockImageInFigure(imageNode);
+      const originalCreateElement = document.createElement.bind(document);
+      const input = document.createElement('input');
+      const click = jest.spyOn(input, 'click').mockImplementation(jest.fn());
+      jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+        if (tagName === 'input') {
+          return input;
+        }
+        return originalCreateElement(tagName);
+      });
+
+      openMenu()
+        .find((item) => item.id === 'choose-file')
+        ?.action();
+
+      Object.defineProperty(input, 'files', {
+        configurable: true,
+        value: [new File(['image'], 'image.png', { type: 'image/png' })],
+      });
+      input.onchange?.({ target: input } as unknown as Event);
+
+      expect(input.type).toBe('file');
+      expect(input.accept).toBe('image/*');
+      expect(click).toHaveBeenCalled();
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(15, undefined, {
+        src: 'data:image/png;base64,new',
+      });
+    });
+
+    it('ignores file selection when no file is selected', () => {
+      mockNode.attrs.figureType = 'figure';
+      const input = document.createElement('input');
+      jest.spyOn(document, 'createElement').mockReturnValue(input);
+
+      openMenu()
+        .find((item) => item.id === 'choose-file')
+        ?.action();
+      input.onchange?.({ target: input } as unknown as Event);
+
+      expect(mockView.state.tr.setNodeMarkup).not.toHaveBeenCalled();
+    });
+
+    it('updates the image source from clipboard image data', async () => {
+      mockNode.attrs.figureType = 'figure';
+      const imageNode = { attrs: { src: 'old-src' } };
+      mockImageInFigure(imageNode);
+      setClipboard({
+        read: jest.fn().mockResolvedValue([
+          {
+            getType: jest.fn().mockResolvedValue(new Blob(['image'], { type: 'image/png' })),
+            types: ['text/plain', 'image/png'],
+          },
+        ]),
+      });
+
+      openMenu()
+        .find((item) => item.id === 'paste-clipboard')
+        ?.action();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(15, undefined, {
+        src: 'data:image/png;base64,new',
+      });
+    });
+
+    it('logs when clipboard read is unavailable', () => {
+      mockNode.attrs.figureType = 'figure';
+      const error = jest.spyOn(console, 'error').mockImplementation(jest.fn());
+      setClipboard(undefined);
+
+      openMenu()
+        .find((item) => item.id === 'paste-clipboard')
+        ?.action();
+
+      expect(error).toHaveBeenCalledWith('Clipboard API not available');
+    });
+
+    it('logs when clipboard read fails', async () => {
+      mockNode.attrs.figureType = 'figure';
+      const error = jest.spyOn(console, 'error').mockImplementation(jest.fn());
+      const read = jest.fn().mockRejectedValue('nope');
+      setClipboard({ read });
+
+      openMenu()
+        .find((item) => item.id === 'paste-clipboard')
+        ?.action();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(error).toHaveBeenCalledWith('Failed to read from clipboard:', 'nope');
+    });
+  });
+
+  describe('selection, update, and cleanup', () => {
+    it('updates attributes and preserves the selected class', () => {
+      view.selectNode();
+
+      const updatedNode = createMockNode({
+        figureType: 'figure',
+        id: 'new-id',
+        maximized: true,
+        orientation: 'landscape',
+      });
+      updatedNode.type = mockNode.type;
+
+      expect(view.update(updatedNode)).toBe(true);
       expect(view.node).toBe(updatedNode);
       expect(view.dom.getAttribute('data-id')).toBe('new-id');
-      expect(view.dom.getAttribute('data-figure-type')).toBe('figure');
+      expect(view.dom.dataset.orientation).toBe('landscape');
+      expect(view.dom.dataset.maximized).toBe('true');
+      expect(view.dom.className).toBe(
+        'enhanced-table-figure has-hover-handle landscape maximized ProseMirror-selectednode'
+      );
+      expect(view.contentDOM.dataset.orientation).toBe('landscape');
     });
 
-    it('should update styles for landscape orientation', () => {
-      const landscapeNode = {
-        ...mockNode,
-        attrs: {
-          ...mockNode.attrs,
-          orientation: 'landscape',
-        },
-      };
-      view.update(landscapeNode as ProseMirrorNode);
-      expect(view.contentDOM.style.width).toBe('100%');
-    });
-  });
-
-  describe('updateNotesTrigger', () => {
-    it('should show add notes button when no notes exist and figureType is table', () => {
-      (mockNode.forEach as jest.Mock).mockImplementation((callback) => {
-        // Simulate no notes
+    it('keeps wrapper DOM untouched when only child content changes', () => {
+      view.selectNode();
+      const setAttribute = jest.spyOn(view.dom, 'setAttribute');
+      const updatedNode = createMockNode({
+        figureType: 'table',
+        id: 'test-id',
+        orientation: 'portrait',
       });
-      view.updateNotesTrigger();
-      expect(view.addNotesButton.style.display).toBe('block');
+      updatedNode.type = mockNode.type;
+      updatedNode.nodeSize = mockNode.nodeSize + 1;
+
+      expect(view.update(updatedNode)).toBe(true);
+
+      expect(view.node).toBe(updatedNode);
+      expect(setAttribute).not.toHaveBeenCalled();
+      expect(view.dom.className).toBe('enhanced-table-figure has-hover-handle ProseMirror-selectednode');
     });
 
-    it('should hide add notes button when notes exist', () => {
-      (mockNode.forEach as jest.Mock).mockImplementation((callback) => {
-        callback({
-          type: {
-            name: 'enhanced_table_figure_notes',
-          },
-        });
-      });
-      view.updateNotesTrigger();
-      expect(view.addNotesButton.style.display).toBe('none');
+    it('returns false when update receives a different node type', () => {
+      const differentNode = createMockNode();
+      differentNode.type = { name: 'different_type' };
+
+      expect(view.update(differentNode)).toBe(false);
     });
 
-    it('should hide add notes button for non-table/figure types', () => {
-      const otherNode = {
-        ...mockNode,
-        attrs: {
-          ...mockNode.attrs,
-          figureType: 'other',
-        },
-      };
-      const otherView = new EnhancedTableFigureView(otherNode as ProseMirrorNode, mockView, mockGetPos);
-      otherView.updateNotesTrigger();
-      expect(otherView.addNotesButton.style.display).toBe('none');
-    });
-  });
-
-  describe('selection handling', () => {
-    it('should add selected class on selectNode', () => {
+    it('selects, deselects, resizes, stops no events, and destroys popups', () => {
+      const createPopUpMock = createPopUp as jest.Mock;
       view.selectNode();
       expect(view.dom.classList.contains('ProseMirror-selectednode')).toBe(true);
       expect(view.dom.getAttribute('data-active')).toBe('true');
-    });
 
-    it('should remove selected class on deselectNode', () => {
-      view.selectNode();
+      openMenu();
+      const menuHandle = createPopUpMock.mock.results.at(-1)?.value;
       view.deselectNode();
       expect(view.dom.classList.contains('ProseMirror-selectednode')).toBe(false);
-      expect(view.dom.getAttribute('data-active')).toBeDefined();
-    });
-  });
+      expect(view.dom.getAttribute('data-active')).toBe('false');
 
-  describe('destroy', () => {
-    it('should close inline editor on destroy', () => {
-      // Mock that we have an inline editor
-      view['_inlineEditor'] = { close: jest.fn() } as unknown as any;
-
-      view.destroy();
-      expect(view['_inlineEditor']?.close).toHaveBeenCalled();
-    });
-  });
-
-  describe('stopEvent', () => {
-    it('should always return false', () => {
-      expect(view.stopEvent(new Event('click'))).toBe(false);
-    });
-  });
-
-  describe('_renderInlineEditor', () => {
-    it('should not render if element not active', () => {
-      jest.spyOn(document, 'getElementById').mockReturnValue({
-        getAttribute: () => 'false',
-      } as any);
-
-      view['_renderInlineEditor']();
-      expect(view['_inlineEditor']).toBeUndefined();
-    });
-
-    it('should create popup when element is active', () => {
-      jest.spyOn(document, 'getElementById').mockReturnValue({
-        getAttribute: () => 'true',
-        closest: () => document.createElement('div'),
-      } as any);
-
-      view.selectNode(); // This will call _renderInlineEditor
-      expect(view['_inlineEditor']).toBeUndefined();
-    });
-  });
-
-  describe('maximizeButton', () => {
-  let figureView: EnhancedTableFigureView;
-
-  beforeEach(() => {
-    const figureNode = {
-      ...mockNode,
-      attrs: {
+      view.onResizeEnd(320, 240);
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(10, undefined, {
         ...mockNode.attrs,
-        figureType: 'figure',
-      },
-      forEach: jest.fn(),
-    } as unknown as ProseMirrorNode;
+        height: 240,
+        width: 320,
+      });
+      expect(view.stopEvent(new Event('click'))).toBe(false);
 
-    figureView = new EnhancedTableFigureView(figureNode, mockView, mockGetPos);
+      openMenu();
+      const destroyHandle = createPopUpMock.mock.results.at(-1)?.value;
+      view.destroy();
+      expect(menuHandle.close).toHaveBeenCalledWith(undefined);
+      expect(destroyHandle.close).toHaveBeenCalledWith(undefined);
+    });
   });
-
-  it('should create maximize button for non-table figureType', () => {
-    expect(figureView.maximizeButton).toBeDefined();
-    expect(figureView.maximizeButton.classList.contains('handle-hidden-on-hover')).toBe(true);
-  });
-
-  it('should not create maximize button for table figureType', () => {
-    expect(view.maximizeButton).toBeUndefined();
-  });
-
-  it('should call createPopUp with cloned DOM on maximize button click', () => {
-    const { createPopUp } = require('@modusoperandi/licit-ui-commands');
-    figureView.maximizeButton.click();
-
-    expect(createPopUp).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        nodeViewDom: expect.any(HTMLElement),
-      }),
-      expect.objectContaining({
-        autoDismiss: false,
-        modal: false,
-      })
-    );
-  });
-
-  it('should truncate notes element to one line in cloned DOM', () => {
-
-    const { createPopUp } = require('@modusoperandi/licit-ui-commands');
-    const notesEl = document.createElement('div');
-    notesEl.className = 'enhanced-table-figure-notes';
-    notesEl.textContent = 'Line1\nLine2\nLine3\nLine4\nLine5\nLine6\nLine7\nLine8\nLine9\nLine10';
-    figureView.dom.appendChild(notesEl);
-
-    figureView.maximizeButton.click();
-
-    const passedDom: HTMLElement = createPopUp.mock.calls[0][1].nodeViewDom;
-    const clonedNotes = passedDom.querySelector('.enhanced-table-figure-notes') as HTMLElement;
-
-    expect(clonedNotes).not.toBeNull();
-    expect(clonedNotes.style.webkitLineClamp).toBe('1');
-    expect(clonedNotes.style.overflow).toBe('hidden');
-    expect(clonedNotes.style.textOverflow).toBe('ellipsis');
-    expect(clonedNotes.style.whiteSpace).toBe('normal');
-  });
-
-  it('should not affect original DOM notes element after maximize click', () => {
-    const notesEl = document.createElement('div');
-    notesEl.className = 'enhanced-table-figure-notes';
-    notesEl.textContent = 'Line1\nLine2\nLine3';
-    figureView.dom.appendChild(notesEl);
-
-    figureView.maximizeButton.click();
-
-    expect(notesEl.style.overflow).toBe('');
-    expect(notesEl.style.textOverflow).toBe('');
-  });
-
-  it('should handle missing notes element gracefully', () => {
-    expect(() => figureView.maximizeButton.click()).not.toThrow();
-  });
-
-  it('should close existing popup and set to null via onClose callback', () => {
-    const { createPopUp } = require('@modusoperandi/licit-ui-commands');
-    const mockClose = jest.fn();
-    createPopUp.mockReturnValue({ close: mockClose });
-
-    figureView.maximizeButton.click();
-
-    const onClose = createPopUp.mock.calls[0][1].onClose;
-    onClose();
-
-    expect(mockClose).toHaveBeenCalled();
-    expect(figureView['_popUp']).toBeNull();
-  });
-});
 });

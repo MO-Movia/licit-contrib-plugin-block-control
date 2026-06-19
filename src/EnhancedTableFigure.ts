@@ -1,7 +1,7 @@
 // Plugin to handle Citation.
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { Schema } from 'prosemirror-model';
-import { EnhancedTableCommands } from './EnhancedTableCommands';
+import { EnhancedTableCommands, removeEmptyNotesCommand } from './EnhancedTableCommands';
 import {
   enhancedTableFigureNodeSpec,
   enhancedTableFigureBodyNodeSpec,
@@ -27,6 +27,13 @@ export class EnhancedTableFigure extends Plugin {
         },
       },
       props: {
+        handleKeyDown(view, event) {
+          if (event.key !== 'Backspace') {
+            return false;
+          }
+
+          return removeEmptyNotesCommand(view.state, view.dispatch);
+        },
         nodeViews: {
           enhanced_table_figure(node, view, getPos) {
             return new EnhancedTableFigureView(node, view, getPos);
@@ -58,6 +65,12 @@ export class EnhancedTableFigure extends Plugin {
       '[exposure] Insert Enhanced Table-Figure': [
         {
           ' Table': new EnhancedTableCommands('table'),
+          ' Table with Landscape': new EnhancedTableCommands('table', {
+            withLandscapeSection: true,
+          }),
+          ' Figure with Landscape': new ImageUploadCommand({
+            withLandscapeSection: true,
+          }),
           ' Insert image from computer': new ImageUploadCommand()
         },
       ],
