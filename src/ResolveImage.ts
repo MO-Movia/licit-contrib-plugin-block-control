@@ -1,4 +1,4 @@
-import url from 'url';
+import url from 'node:url';
 
 export type ImageResult = {
   complete: boolean;
@@ -83,8 +83,7 @@ function processPromise(
   const dispose = () => {
     if (img) {
       if (isImgInstance(img)) {
-        const pe = img.parentNode;
-        pe?.removeChild(img);
+        img.remove();
       }
       img.onload = null;
       img.onerror = null;

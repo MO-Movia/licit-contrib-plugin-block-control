@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorView, NodeView } from 'prosemirror-view';
 import { TextSelection } from 'prosemirror-state';
-import { addNotesCommand } from './EnhancedTableCommands';
+import { addNotesCommand, deleteNotesCommand } from './EnhancedTableCommands';
 import { atAnchorTopCenter, createPopUp, PopUpHandle, uuid } from '@modusoperandi/licit-ui-commands';
 import { ImageViewer } from './ui/ImageViewer';
 import { CropImagePopup, CropDataPropValue } from './ui/CropImagePopup';
@@ -364,6 +364,19 @@ export class EnhancedTableFigureView implements NodeView {
           },
         ]
         : []),
+      ...(notesExists
+        ? [
+          {
+            id: 'delete-notes',
+            label: 'Delete Notes',
+            icon: 'clear',
+            action: () => {
+              this.handleDeleteNotesClick(e);
+              this._popUpManager.close('hamburger-menu');
+            },
+          },
+        ]
+        : []),
       {
         id: 'crop',
         label: 'Crop',
@@ -398,7 +411,7 @@ export class EnhancedTableFigureView implements NodeView {
     const figureType = this.node.attrs.figureType;
     let menuItems: MenuItemConfig[] = fullMenuItems;
     if (figureType === 'table') {
-      const allowed = new Set(['insert-above', 'insert-below', 'add-notes', 'delete']);
+      const allowed = new Set(['insert-above', 'insert-below', 'add-notes', 'delete-notes', 'delete']);
       menuItems = fullMenuItems.filter((it) => allowed.has(it.id));
     }
 
@@ -412,6 +425,12 @@ export class EnhancedTableFigureView implements NodeView {
     e.preventDefault();
     const { state, dispatch } = this.view;
     dispatch(addNotesCommand(state.tr, state.schema, this.getPos()));
+  }
+
+  private handleDeleteNotesClick(e: Event): void {
+    e.preventDefault();
+    const { state, dispatch } = this.view;
+    dispatch(deleteNotesCommand(state.tr, this.getPos()));
   }
 
   private handleMaximizeClick(e: Event): void {
