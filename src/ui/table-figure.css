@@ -130,10 +130,6 @@
   border-color: var(--color-border-secondary, rgba(0, 0, 0, 0.1));
 }
 
-.enhanced-table-figure-select-handle:active {
-  /* transform: scale(0.95); */
-}
-
 /* Maximize Button */
 .enhanced-table-figure-maximize-button {
   position: absolute;

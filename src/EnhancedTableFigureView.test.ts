@@ -244,7 +244,12 @@ describe('EnhancedTableFigureView', () => {
       menuItems = openMenu();
       expect(menuItems.find((item) => item.id === 'add-notes')).toBeUndefined();
       expect(menuItems.find((item) => item.id === 'delete-notes')).toEqual(
-        expect.objectContaining({ label: 'Delete Note' })
+        expect.objectContaining({
+          action: expect.any(Function),
+          icon: 'clear',
+          id: 'delete-notes',
+          label: 'Delete Notes',
+        })
       );
     });
 
