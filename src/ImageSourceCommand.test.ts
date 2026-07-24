@@ -60,7 +60,7 @@ describe('ImageSourceCommand', () => {
           parseDOM: [{ tag: 'div.figure' }],
         },
         enhanced_table_figure_body: {
-          content: 'image',
+          content: 'block+',
           toDOM: () => ['div', { class: 'figure-body' }, 0],
           parseDOM: [{ tag: 'div.figure-body' }],
         },
@@ -233,6 +233,25 @@ describe('ImageSourceCommand', () => {
       expect(hideCursorPlaceholder).toHaveBeenCalledWith(view.state);
       expect(view.focus).toHaveBeenCalled();
       expect(result).toBe(true);
+    });
+
+    it('should wrap image in a paragraph inside the figure body', () => {
+      const inputs = { src: 'test-image.jpg', alt: 'Test Image' };
+
+      command.executeWithUserInput(state, dispatch, view, inputs);
+
+      const tr = dispatch.mock.calls[0][0];
+      const figureNode = tr.doc.child(1);
+      expect(figureNode.type.name).toBe('enhanced_table_figure');
+      const bodyNode = figureNode.child(0);
+      expect(bodyNode.type.name).toBe('enhanced_table_figure_body');
+      // Body must contain a paragraph (block), not a bare inline image.
+      expect(bodyNode.childCount).toBe(1);
+      const paragraphNode = bodyNode.child(0);
+      expect(paragraphNode.type.name).toBe('paragraph');
+      expect(paragraphNode.childCount).toBe(1);
+      expect(paragraphNode.child(0).type.name).toBe('image');
+      expect(paragraphNode.child(0).attrs.src).toBe('test-image.jpg');
     });
 
     it('should insert enhanced image figure inside landscape section', () => {
