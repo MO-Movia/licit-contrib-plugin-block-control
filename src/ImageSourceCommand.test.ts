@@ -232,7 +232,7 @@ describe('ImageSourceCommand', () => {
       expect(dispatch).toHaveBeenCalled();
       expect(hideCursorPlaceholder).toHaveBeenCalledWith(view.state);
       expect(view.focus).toHaveBeenCalled();
-      expect(result).toBe(false);
+      expect(result).toBe(true);
     });
 
     it('should insert enhanced image figure inside landscape section', () => {
@@ -285,7 +285,7 @@ describe('ImageSourceCommand', () => {
       const result = command.executeWithUserInput(state, dispatch, null, inputs);
 
       expect(dispatch).toHaveBeenCalled();
-      expect(result).toBe(false);
+      expect(result).toBe(true);
     });
 
     it('should not call view.focus when view is null', () => {

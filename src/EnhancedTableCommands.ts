@@ -196,7 +196,7 @@ function isResolvedPosInsideLandscapeSection($from): boolean {
 
 export function addNotesCommand(tr, schema, pos) {
   const node = tr.doc.nodeAt(pos);
-  if (!node || node.type.name !== ENHANCED_TABLE_FIGURE) return tr;
+  if (node?.type.name !== ENHANCED_TABLE_FIGURE) return tr;
 
   // Check if notes already exist.
   let notesExists = false;
@@ -221,8 +221,7 @@ export function addNotesCommand(tr, schema, pos) {
   // Insert the notes node after the body.
   const newChildren = [];
   let inserted = false;
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
+  for (const child of children) {
     newChildren.push(child);
     if (!inserted && child.type.name === ENHANCED_TABLE_FIGURE_BODY) {
       newChildren.push(notesNode);
@@ -231,6 +230,26 @@ export function addNotesCommand(tr, schema, pos) {
   }
 
   const newNode = node.type.create(node.attrs, Fragment.fromArray(newChildren));
+  return tr.replaceWith(pos, pos + node.nodeSize, newNode);
+}
+
+export function deleteNotesCommand(tr, pos) {
+  const node = tr.doc.nodeAt(pos);
+  if (node?.type.name !== ENHANCED_TABLE_FIGURE) return tr;
+
+  const children = [];
+  let notesExists = false;
+  node.forEach((child) => {
+    if (child.type.name === ENHANCED_TABLE_FIGURE_NOTES) {
+      notesExists = true;
+      return;
+    }
+    children.push(child);
+  });
+
+  if (!notesExists) return tr;
+
+  const newNode = node.type.create(node.attrs, Fragment.fromArray(children), node.marks);
   return tr.replaceWith(pos, pos + node.nodeSize, newNode);
 }
 

@@ -1,7 +1,7 @@
 import { Schema, DOMParser, Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorState, TextSelection, Transaction } from 'prosemirror-state';
 import { Transform } from 'prosemirror-transform';
-import { EnhancedTableCommands, addNotesCommand, removeEmptyNotesCommand } from './EnhancedTableCommands';
+import { EnhancedTableCommands, addNotesCommand, deleteNotesCommand, removeEmptyNotesCommand } from './EnhancedTableCommands';
 import { schema as basicSchema } from 'prosemirror-schema-basic';
 import { doc, p } from 'jest-prosemirror';
 
@@ -222,6 +222,57 @@ describe('addNotesCommand', () => {
         tr = new Transform(state.doc);
 
         const result = addNotesCommand(tr, schema, pos);
+        expect(result).toBe(tr);
+    });
+});
+
+describe('deleteNotesCommand', () => {
+    let state: EditorState;
+    let tr: Transform;
+    let pos: number;
+
+    beforeEach(() => {
+        const tableNode = schema.nodes.table.createAndFill();
+        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, tableNode);
+        const notesParagraph = schema.nodes.paragraph.create({}, schema.text('Note'));
+        const notesNode = schema.nodes.enhanced_table_figure_notes.create({}, notesParagraph);
+        const capcoNode = schema.nodes.enhanced_table_figure_capco.create({}, schema.text('Footer'));
+        const figureNode = schema.nodes.enhanced_table_figure.create({}, [bodyNode, notesNode, capcoNode]);
+
+        const docNode = schema.nodes.doc.create({}, [figureNode]);
+        state = EditorState.create({ doc: docNode, schema });
+        tr = new Transform(state.doc);
+        pos = 0;
+    });
+
+    test('deletes notes when present', () => {
+        const result = deleteNotesCommand(tr, pos);
+        const newNode = result.doc.nodeAt(pos);
+        expect(newNode.childCount).toBe(2);
+        expect(newNode.child(0).type.name).toBe('enhanced_table_figure_body');
+        expect(newNode.child(1).type.name).toBe('enhanced_table_figure_capco');
+    });
+
+    test('returns original tr when notes are not present', () => {
+        const tableNode = schema.nodes.table.createAndFill();
+        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, tableNode);
+        const capcoNode = schema.nodes.enhanced_table_figure_capco.create({}, schema.text('Footer'));
+        const figureNode = schema.nodes.enhanced_table_figure.create({}, [bodyNode, capcoNode]);
+
+        const docNode = schema.nodes.doc.create({}, [figureNode]);
+        state = EditorState.create({ doc: docNode, schema });
+        tr = new Transform(state.doc);
+
+        const result = deleteNotesCommand(tr, pos);
+        expect(result).toBe(tr);
+    });
+
+    test('returns original tr when node is not enhanced_table_figure', () => {
+        const docNode = schema.nodes.doc.create({}, [schema.nodes.paragraph.create()]);
+        state = EditorState.create({ doc: docNode, schema });
+        tr = new Transform(state.doc);
+
+        const result = deleteNotesCommand(tr, pos);
         expect(result).toBe(tr);
     });
 });

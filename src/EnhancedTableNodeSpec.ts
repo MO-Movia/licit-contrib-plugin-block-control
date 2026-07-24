@@ -24,11 +24,12 @@ export const enhancedTableFigureNotesNodeSpec: NodeSpec = {
   attrs: {
     styleName: { default: 'Normal' },
   },
-  parseDOM: [{ tag: "div[data-type='enhanced-table-figure-notes']",
-      getAttrs: (dom: HTMLElement) => ({
-        styleName: dom.getAttribute('data-styleName') || 'Normal',
-      }),
-   }],
+  parseDOM: [{
+    tag: "div[data-type='enhanced-table-figure-notes']",
+    getAttrs: (dom: HTMLElement) => ({
+      styleName: dom.dataset['stylename'] || dom.dataset['styleName'] || 'Normal',
+    }),
+  }],
   toDOM(node) {
     return [
       'div',
@@ -55,7 +56,8 @@ export const enhancedTableFigureCapcoNodeSpec: NodeSpec = {
     {
       tag: "div[data-type='enhanced-table-figure-capco']",
       getAttrs(dom) {
-        return { form: dom.getAttribute('data-form') || 'long', capco: dom.getAttribute('data-capco') || null };
+        const { capco, form } = dom.dataset;
+        return { form: form || 'long', capco: capco || null };
       },
     },
   ],
@@ -94,11 +96,12 @@ export const enhancedTableFigureNodeSpec: NodeSpec = {
     {
       tag: "div[data-type='enhanced-table-figure']",
       getAttrs(dom) {
+        const dataset = dom.dataset;
         return {
-          id: dom.getAttribute('data-id') || '',
-          figureType: dom.getAttribute('data-figure-type') || 'table',
-          orientation: dom.getAttribute('data-orientation') || 'portrait',
-          maximized: dom.getAttribute('data-maximized') === 'true',
+          id: dataset.id || '',
+          figureType: dataset.figureType || 'table',
+          orientation: dataset.orientation || 'portrait',
+          maximized: dataset.maximized === 'true',
         };
       },
     },

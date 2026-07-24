@@ -139,26 +139,28 @@ export class ImageSourceCommand extends UICommand {
       return false;
     }
 
-    if (dispatch) {
-      const { selection, schema } = state;
-      let { tr } = state;
-      tr = view ? (hideCursorPlaceholder(view.state) as Transaction) : tr;
-      tr = tr.setSelection(selection);
-      if (inputs) {
-        const { src } = inputs;
-        tr = insertEnhancedImageFigure(
-          tr,
-          schema,
-          src,
-          '',
-          this._withLandscapeSection
-        ) as Transaction;
-      }
-      dispatch(tr);
-      view?.focus();
+    if (!dispatch) {
+      return false;
     }
 
-    return false;
+    const { selection, schema } = state;
+    let { tr } = state;
+    tr = view ? (hideCursorPlaceholder(view.state) as Transaction) : tr;
+    tr = tr.setSelection(selection);
+    if (inputs) {
+      const { src } = inputs;
+      tr = insertEnhancedImageFigure(
+        tr,
+        schema,
+        src,
+        '',
+        this._withLandscapeSection
+      ) as Transaction;
+    }
+    dispatch(tr);
+    view?.focus();
+
+    return !!inputs;
   };
 
   __isEnabled = (state: EditorState, _view: EditorView): boolean => {

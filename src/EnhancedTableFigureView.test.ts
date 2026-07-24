@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorView } from 'prosemirror-view';
 import { TextSelection } from 'prosemirror-state';
-import { addNotesCommand } from './EnhancedTableCommands';
+import { addNotesCommand, deleteNotesCommand } from './EnhancedTableCommands';
 import { createPopUp } from '@modusoperandi/licit-ui-commands';
 import { EnhancedTableFigureView } from './EnhancedTableFigureView';
 
@@ -17,6 +17,7 @@ jest.mock('prosemirror-state', () => ({
 }));
 jest.mock('./EnhancedTableCommands', () => ({
   addNotesCommand: jest.fn(() => 'notes-transaction'),
+  deleteNotesCommand: jest.fn(() => 'delete-notes-transaction'),
 }));
 jest.mock('@modusoperandi/licit-ui-commands', () => ({
   atAnchorTopCenter: jest.fn(),
@@ -171,9 +172,9 @@ describe('EnhancedTableFigureView', () => {
       expect(view.dom).toBeDefined();
       expect(view.dom.id).toBe('test-view-id');
       expect(view.dom.className).toBe('enhanced-table-figure has-hover-handle');
-      expect(view.dom.getAttribute('data-type')).toBe('enhanced-table-figure');
-      expect(view.dom.getAttribute('data-id')).toBe('test-id');
-      expect(view.dom.getAttribute('data-figure-type')).toBe('table');
+      expect(view.dom.dataset.type).toBe('enhanced-table-figure');
+      expect(view.dom.dataset.id).toBe('test-id');
+      expect(view.dom.dataset.figureType).toBe('table');
       expect(view.contentDOM.parentElement).toBe(view.dom);
       expect(view.contentDOM.dataset.orientation).toBe('portrait');
       expect(view.dom.querySelector('.enhanced-table-figure-maximize-button')).toBeNull();
@@ -233,14 +234,23 @@ describe('EnhancedTableFigureView', () => {
       expect(disabledAction).not.toHaveBeenCalled();
     });
 
-    it('includes add notes for a table without notes and excludes it when notes exist', () => {
+    it('includes add notes for a table without notes and delete note when notes exist', () => {
       let menuItems = openMenu();
       expect(menuItems.find((item) => item.id === 'add-notes')).toBeDefined();
+      expect(menuItems.find((item) => item.id === 'delete-notes')).toBeUndefined();
 
       setNodeChildren(mockNode, [createContentNode('enhanced_table_figure_notes')]);
 
       menuItems = openMenu();
       expect(menuItems.find((item) => item.id === 'add-notes')).toBeUndefined();
+      expect(menuItems.find((item) => item.id === 'delete-notes')).toEqual(
+        expect.objectContaining({
+          action: expect.any(Function),
+          icon: 'clear',
+          id: 'delete-notes',
+          label: 'Delete Notes',
+        })
+      );
     });
 
     it('shows the full image menu for figure nodes', () => {
@@ -310,6 +320,16 @@ describe('EnhancedTableFigureView', () => {
 
       expect(addNotesCommand).toHaveBeenCalledWith(mockView.state.tr, mockView.state.schema, 10);
       expect(mockView.dispatch).toHaveBeenCalledWith('notes-transaction');
+    });
+
+    it('deletes notes through the command', () => {
+      setNodeChildren(mockNode, [createContentNode('enhanced_table_figure_notes')]);
+      const menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'delete-notes')?.action();
+
+      expect(deleteNotesCommand).toHaveBeenCalledWith(mockView.state.tr, 10);
+      expect(mockView.dispatch).toHaveBeenCalledWith('delete-notes-transaction');
     });
 
     it('opens crop and dispatches confirmed crop data', () => {
@@ -530,7 +550,7 @@ describe('EnhancedTableFigureView', () => {
 
       expect(view.update(updatedNode)).toBe(true);
       expect(view.node).toBe(updatedNode);
-      expect(view.dom.getAttribute('data-id')).toBe('new-id');
+      expect(view.dom.dataset.id).toBe('new-id');
       expect(view.dom.dataset.orientation).toBe('landscape');
       expect(view.dom.dataset.maximized).toBe('true');
       expect(view.dom.className).toBe(
@@ -568,13 +588,13 @@ describe('EnhancedTableFigureView', () => {
       const createPopUpMock = createPopUp as jest.Mock;
       view.selectNode();
       expect(view.dom.classList.contains('ProseMirror-selectednode')).toBe(true);
-      expect(view.dom.getAttribute('data-active')).toBe('true');
+      expect(view.dom.dataset.active).toBe('true');
 
       openMenu();
       const menuHandle = createPopUpMock.mock.results.at(-1)?.value;
       view.deselectNode();
       expect(view.dom.classList.contains('ProseMirror-selectednode')).toBe(false);
-      expect(view.dom.getAttribute('data-active')).toBe('false');
+      expect(view.dom.dataset.active).toBe('false');
 
       view.onResizeEnd(320, 240);
       expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(10, undefined, {
