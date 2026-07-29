@@ -5,12 +5,12 @@ import { Decoration, DecorationSet } from 'prosemirror-view';
 
 const PLACE_HOLDER_ID = { name: 'CursorPlaceholderPlugin' };
 
-let singletonInstance: CursorPlaceholderPlugin = null;
+const cursorPlaceholderPluginKey = new PluginKey('CursorPlaceholderPlugin');
 
 // https://prosemirror.net/examples/upload/
 const SPEC = {
   // Upgrade outdated packages.
-  key: new PluginKey('CursorPlaceholderPlugin'),
+  key: cursorPlaceholderPluginKey,
   state: {
     init() {
       return DecorationSet.empty;
@@ -38,8 +38,7 @@ const SPEC = {
   },
   props: {
     decorations: (state) => {
-      const plugin = singletonInstance;
-      return plugin ? plugin.getState(state) : null;
+      return cursorPlaceholderPluginKey.getState(state) ?? null;
     },
   },
 };
@@ -47,9 +46,6 @@ const SPEC = {
 export class CursorPlaceholderPlugin extends Plugin {
   constructor() {
     super(SPEC);
-    if (!singletonInstance) {
-      singletonInstance = this as CursorPlaceholderPlugin;
-    }
   }
 }
 
@@ -58,13 +54,13 @@ export function specFinder(spec: Record<string, unknown>): boolean {
 }
 
 export function resetInstance() {
-  singletonInstance = null;
+  return;
 }
 export function findCursorPlaceholderPos(state: EditorState): number | null {
-  if (!singletonInstance) {
+  const decos = cursorPlaceholderPluginKey.getState(state);
+  if (!decos) {
     return null;
   }
-  const decos = singletonInstance.getState(state);
   const found = decos.find(null, null, specFinder);
   const pos = found.length ? found[0].from : null;
   return pos || null;
@@ -79,7 +75,7 @@ export function isPlugin(plugin, tr): boolean {
   }
 }
 export function showCursorPlaceholder(state: EditorState): Transform {
-  const plugin = singletonInstance;
+  const plugin = cursorPlaceholderPluginKey;
   let { tr } = state;
   if (isPlugin(plugin, tr)) {
     return tr;
@@ -102,11 +98,8 @@ export function showCursorPlaceholder(state: EditorState): Transform {
 }
 
 export function hideCursorPlaceholder(state: EditorState): Transform {
-  const plugin = singletonInstance;
+  const plugin = cursorPlaceholderPluginKey;
   let { tr } = state;
-  if (!plugin) {
-    return tr;
-  }
 
   const pos = findCursorPlaceholderPos(state);
   if (pos !== null) {
@@ -118,6 +111,9 @@ export function hideCursorPlaceholder(state: EditorState): Transform {
   return tr;
 }
 export function getSingletonInstance(): CursorPlaceholderPlugin | null {
-  return singletonInstance;
+  return null;
 }
 
+export function getCursorPlaceholderPluginKey(): PluginKey {
+  return cursorPlaceholderPluginKey;
+}

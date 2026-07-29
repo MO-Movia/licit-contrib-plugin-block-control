@@ -50,7 +50,13 @@ export function insertEnhancedImageFigure(
     cropData: null,
   };
   const imageNode = imageNodeType.create(imageAttrs, null);
-  const bodyNode = bodyType.create({}, imageNode);
+  // Wrap the inline image in a paragraph so the body (content: 'block+')
+  // receives a valid block child.  Mirrors how EnhancedTableCommands wraps
+  // its table node and matches the structure the load-time repair
+  // (wrapInlineChildren) produces for legacy documents.
+  const paragraphType = schema.nodes.paragraph;
+  const imageWrapper = paragraphType.create({}, imageNode);
+  const bodyNode = bodyType.create({}, imageWrapper);
 
   // No notes by default.
   // Create a blank CAPCO (footer) node.
@@ -139,26 +145,28 @@ export class ImageSourceCommand extends UICommand {
       return false;
     }
 
-    if (dispatch) {
-      const { selection, schema } = state;
-      let { tr } = state;
-      tr = view ? (hideCursorPlaceholder(view.state) as Transaction) : tr;
-      tr = tr.setSelection(selection);
-      if (inputs) {
-        const { src } = inputs;
-        tr = insertEnhancedImageFigure(
-          tr,
-          schema,
-          src,
-          '',
-          this._withLandscapeSection
-        ) as Transaction;
-      }
-      dispatch(tr);
-      view?.focus();
+    if (!dispatch) {
+      return false;
     }
 
-    return false;
+    const { selection, schema } = state;
+    let { tr } = state;
+    tr = view ? (hideCursorPlaceholder(view.state) as Transaction) : tr;
+    tr = tr.setSelection(selection);
+    if (inputs) {
+      const { src } = inputs;
+      tr = insertEnhancedImageFigure(
+        tr,
+        schema,
+        src,
+        '',
+        this._withLandscapeSection
+      ) as Transaction;
+    }
+    dispatch(tr);
+    view?.focus();
+
+    return !!inputs;
   };
 
   __isEnabled = (state: EditorState, _view: EditorView): boolean => {
