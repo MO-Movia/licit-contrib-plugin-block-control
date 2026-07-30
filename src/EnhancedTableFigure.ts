@@ -14,6 +14,7 @@ import {
 } from './Constants';
 import { ImageUploadCommand } from './ImageUploadCommand';
 import { EnhancedTableFigureView } from './EnhancedTableFigureView';
+import { normalizeLegacyEnhancedTableFigureBodies } from './EnhancedTableNormalizer';
 export class EnhancedTableFigure extends Plugin {
   constructor() {
     super({
@@ -39,6 +40,30 @@ export class EnhancedTableFigure extends Plugin {
             return new EnhancedTableFigureView(node, view, getPos);
           },
         },
+      },
+      appendTransaction(transactions, _oldState, newState) {
+        if (!transactions.some((tr) => tr.docChanged)) {
+          return null;
+        }
+
+        const tr = normalizeLegacyEnhancedTableFigureBodies(
+          newState.tr,
+          newState.schema
+        );
+        return tr.steps.length ? tr : null;
+      },
+      view(editorView) {
+        Promise.resolve().then(() => {
+          const tr = normalizeLegacyEnhancedTableFigureBodies(
+            editorView.state.tr,
+            editorView.state.schema
+          );
+          if (tr.steps.length) {
+            editorView.dispatch(tr);
+          }
+        });
+
+        return {};
       },
     });
   }

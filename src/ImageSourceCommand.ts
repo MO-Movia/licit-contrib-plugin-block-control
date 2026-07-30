@@ -40,7 +40,8 @@ export function insertEnhancedImageFigure(
   // Create the body that contains an image.
   const bodyType = schema.nodes.enhanced_table_figure_body;
   const imageNodeType = schema.nodes['image'];
-  if (!imageNodeType) {
+  const paragraphType = schema.nodes.paragraph;
+  if (!(bodyType && imageNodeType)) {
     return tr;
   }
   const imageAttrs = {
@@ -50,17 +51,20 @@ export function insertEnhancedImageFigure(
     cropData: null,
   };
   const imageNode = imageNodeType.create(imageAttrs, null);
-  // Wrap the inline image in a paragraph so the body (content: 'block+')
-  // receives a valid block child.  Mirrors how EnhancedTableCommands wraps
-  // its table node and matches the structure the load-time repair
-  // (wrapInlineChildren) produces for legacy documents.
-  const paragraphType = schema.nodes.paragraph;
-  const imageWrapper = paragraphType.create({}, imageNode);
-  const bodyNode = bodyType.create({}, imageWrapper);
+  const bodyContentNode = imageNodeType.isInline
+    ? paragraphType?.create({}, imageNode)
+    : imageNode;
+  if (!bodyContentNode) {
+    return tr;
+  }
+  const bodyNode = bodyType.create({}, Fragment.from(bodyContentNode));
 
   // No notes by default.
   // Create a blank CAPCO (footer) node.
   const capcoType = schema.nodes.enhanced_table_figure_capco;
+  if (!capcoType) {
+    return tr;
+  }
   const capcoNode = capcoType.create({}, schema.text(' '));
 
   // Assemble the composite in the order: [body, capco]

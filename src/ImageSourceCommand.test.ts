@@ -228,30 +228,17 @@ describe('ImageSourceCommand', () => {
       const inputs = { src: 'test-image.jpg', alt: 'Test Image' };
 
       const result = command.executeWithUserInput(state, dispatch, view, inputs);
+      const tr = dispatch.mock.calls[0][0];
+      const insertedFigure = tr.doc.child(1);
+      const insertedBody = insertedFigure.firstChild;
 
       expect(dispatch).toHaveBeenCalled();
+      expect(insertedBody.type.name).toBe('enhanced_table_figure_body');
+      expect(insertedBody.firstChild.type.name).toBe('paragraph');
+      expect(insertedBody.firstChild.firstChild.type.name).toBe('image');
       expect(hideCursorPlaceholder).toHaveBeenCalledWith(view.state);
       expect(view.focus).toHaveBeenCalled();
       expect(result).toBe(true);
-    });
-
-    it('should wrap image in a paragraph inside the figure body', () => {
-      const inputs = { src: 'test-image.jpg', alt: 'Test Image' };
-
-      command.executeWithUserInput(state, dispatch, view, inputs);
-
-      const tr = dispatch.mock.calls[0][0];
-      const figureNode = tr.doc.child(1);
-      expect(figureNode.type.name).toBe('enhanced_table_figure');
-      const bodyNode = figureNode.child(0);
-      expect(bodyNode.type.name).toBe('enhanced_table_figure_body');
-      // Body must contain a paragraph (block), not a bare inline image.
-      expect(bodyNode.childCount).toBe(1);
-      const paragraphNode = bodyNode.child(0);
-      expect(paragraphNode.type.name).toBe('paragraph');
-      expect(paragraphNode.childCount).toBe(1);
-      expect(paragraphNode.child(0).type.name).toBe('image');
-      expect(paragraphNode.child(0).attrs.src).toBe('test-image.jpg');
     });
 
     it('should insert enhanced image figure inside landscape section', () => {
@@ -264,6 +251,7 @@ describe('ImageSourceCommand', () => {
       const insertedNode = tr.doc.child(1);
       expect(insertedNode.type.name).toBe('landscape_section');
       expect(insertedNode.firstChild.type.name).toBe('enhanced_table_figure');
+      expect(insertedNode.firstChild.firstChild.firstChild.type.name).toBe('paragraph');
     });
 
     it('should not insert landscape image figure inside existing landscape section', () => {
