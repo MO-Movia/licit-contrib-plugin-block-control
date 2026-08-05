@@ -162,35 +162,37 @@ describe('Enhanced Table Figure Node Specs', () => {
       ]);
     });
 
-    it('getAttrs parses all attributes correctly', () => {
-      const tag = enhancedTableFigureNodeSpec.parseDOM![0];
-      const dom = document.createElement('div');
-      dom.setAttribute('data-id', 'id123');
-      dom.setAttribute('data-figure-type', 'figure');
-      dom.setAttribute('data-orientation', 'landscape');
-      dom.setAttribute('data-maximized', 'true');
+  it('getAttrs parses all attributes correctly', () => {
+    const tag = enhancedTableFigureNodeSpec.parseDOM![0];
+    const dom = document.createElement('div');
+    dom.setAttribute('data-id', 'id123');
+    dom.setAttribute('data-figure-type', 'figure');
+    dom.setAttribute('data-orientation', 'landscape');
+    dom.setAttribute('data-maximized', 'true');
 
-      const attrs = tag.getAttrs!(dom);
-      expect(attrs).toEqual({
-        id: 'id123',
-        figureType: 'figure',
-        orientation: 'landscape',
-        maximized: true,
-      });
+    const attrs = tag.getAttrs!(dom);
+    expect(attrs).toEqual({
+      id: 'id123',
+      dirty: false,
+      figureType: 'figure',
+      orientation: 'landscape',
+      maximized: true,
     });
+  });
 
-    it('getAttrs falls back to defaults', () => {
-      const tag = enhancedTableFigureNodeSpec.parseDOM![0];
-      const dom = document.createElement('div');
+  it('getAttrs falls back to defaults', () => {
+    const tag = enhancedTableFigureNodeSpec.parseDOM![0];
+    const dom = document.createElement('div');
 
-      const attrs = tag.getAttrs!(dom);
-      expect(attrs).toEqual({
-        id: '',
-        figureType: 'table',
-        orientation: 'portrait',
-        maximized: false,
-      });
+    const attrs = tag.getAttrs!(dom);
+    expect(attrs).toEqual({
+      id: '',
+      dirty: false,
+      figureType: 'table',
+      orientation: 'portrait',
+      maximized: false,
     });
+  });
 
     it('includes content expression', () => {
       expect(enhancedTableFigureNodeSpec.content).toBe(
