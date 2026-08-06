@@ -50,7 +50,8 @@ export function normalizeLegacyEnhancedTableFigureBodies(
     return false;
   });
 
-  for (const { node, pos, replacement } of replacements.reverse()) {
+  const reversedReplacements = [...replacements].reverse();
+  for (const { node, pos, replacement } of reversedReplacements) {
     tr = tr.replaceWith(pos, pos + node.nodeSize, replacement);
   }
 
