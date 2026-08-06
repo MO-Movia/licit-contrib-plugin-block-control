@@ -30,6 +30,7 @@ type MockNode = ProseMirrorNode & {
   child: jest.Mock;
   childCount: number;
   content?: { size: number };
+  descendants: jest.Mock;
   forEach: jest.Mock;
   nodeSize: number;
   type: { name: string };
@@ -41,6 +42,7 @@ type MockView = EditorView & {
   focus: jest.Mock;
   state: {
     doc: { content: { size: number }; nodeAt: jest.Mock; resolve: jest.Mock };
+    plugins: Array<Record<string, unknown>>;
     schema: { nodes: { paragraph: { create: jest.Mock } } };
     tr: {
       delete: jest.Mock;
@@ -101,6 +103,7 @@ describe('EnhancedTableFigureView', () => {
       },
       child: jest.fn(),
       childCount: 0,
+      descendants: jest.fn(),
       forEach: jest.fn(),
       nodeSize: 6,
       type: {
@@ -116,7 +119,7 @@ describe('EnhancedTableFigureView', () => {
   const openMenu = () => {
     view['handleHamburgerMenuClick'](new Event('click'));
     return getLastPopUpCall()[1].menuItems as Array<{
-      action: () => void;
+      action: (anchor?: HTMLElement) => void;
       disabled?: boolean;
       id: string;
       label: string;
@@ -154,6 +157,7 @@ describe('EnhancedTableFigureView', () => {
       focus: jest.fn(),
       state: {
         doc: { content: { size: 100 }, nodeAt: jest.fn(), resolve: jest.fn((pos: number) => ({ pos })) },
+        plugins: [],
         schema: { nodes: { paragraph: { create: jest.fn(() => 'paragraph-node') } } },
         tr: createMockTransaction(),
       },
@@ -201,14 +205,37 @@ describe('EnhancedTableFigureView', () => {
       const handle = view.dom.querySelector('.enhanced-table-figure-select-handle') as HTMLElement;
 
       fireEvent.click(handle);
-      expect(getLastPopUpCall()[1].menuItems).toHaveLength(4);
+      expect(getLastPopUpCall()[1].menuItems).toHaveLength(5);
 
       handle.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: ' ' }));
-      expect(getLastPopUpCall()[1].menuItems).toHaveLength(4);
+      expect(getLastPopUpCall()[1].menuItems).toHaveLength(5);
     });
   });
 
   describe('hamburger menu', () => {
+    it('routes Apply Style to the installed styles plugin for the nested table', () => {
+      const picker = { close: jest.fn() };
+      const openTableStylePicker = jest.fn(() => picker);
+      mockView.state.plugins = [{ openTableStylePicker }];
+      mockNode.descendants.mockImplementation((callback) => {
+        callback({ type: { spec: { tableRole: 'table' } } }, 2);
+      });
+
+      const applyStyle = openMenu().find((item) => item.id === 'apply-style');
+      const anchor = document.createElement('button');
+
+      expect(applyStyle?.disabled).toBe(false);
+      applyStyle?.action(anchor);
+      expect(openTableStylePicker).toHaveBeenCalledWith(
+        expect.objectContaining({
+          anchor,
+          getTablePos: expect.any(Function),
+          view: mockView,
+        })
+      );
+      expect(openTableStylePicker.mock.calls[0][0].getTablePos()).toBe(13);
+    });
+
     it('renders menu items and invokes only enabled actions', () => {
       const action = jest.fn();
       const disabledAction = jest.fn();

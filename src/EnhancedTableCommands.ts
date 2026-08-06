@@ -166,14 +166,17 @@ export class EnhancedTableCommands extends UICommand {
         const attrs = rr === 0 && cc < 3 ? { background: '#abdbe3' } : undefined;
         const cellNode = cell.create(
           attrs,
-          Fragment.fromArray([paragraph.create()])
+          Fragment.fromArray([paragraph.create({ styleName: 'Normal' })])
         );
         cellNodes.push(cellNode);
       }
       const rowNode = row.create({}, Fragment.from(cellNodes));
       rowNodes.push(rowNode);
     }
-    const tableNode = table.create({}, Fragment.from(rowNodes));
+    const tableNode = table.create(
+      { tableStyleName: 'Normal' },
+      Fragment.from(rowNodes)
+    );
     return tableNode;
   }
 

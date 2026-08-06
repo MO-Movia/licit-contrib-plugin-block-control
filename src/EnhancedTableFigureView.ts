@@ -15,7 +15,7 @@ interface MenuItemConfig {
   id: string;
   label: string;
   icon: string;
-  action: () => void;
+  action: (anchor?: HTMLElement) => void;
   disabled?: boolean;
 }
 
@@ -43,7 +43,7 @@ function HamburgerMenuDropdownView({ menuItems }: HamburgerMenuDropdownProps): R
             e.preventDefault();
             e.stopPropagation();
             if (!item.disabled) {
-              item.action();
+              item.action(e.currentTarget);
             }
           },
         },
@@ -252,6 +252,7 @@ export class EnhancedTableFigureView implements NodeView {
   private readonly _id = uuid();
   private readonly _popUpManager = new PopUpManager();
   private readonly _handleController: HandleController;
+  private _stylePicker?: PopUpHandle;
 
   constructor(node: ProseMirrorNode, view: EditorView, getPos: () => number) {
     this.node = node;
@@ -314,6 +315,7 @@ export class EnhancedTableFigureView implements NodeView {
       !notesExists &&
       (this.node.attrs.figureType === 'table' || this.node.attrs.figureType === 'figure');
 
+    const figureType = this.node.attrs.figureType;
     const fullMenuItems: MenuItemConfig[] = [
       {
         id: 'insert-above',
@@ -333,6 +335,19 @@ export class EnhancedTableFigureView implements NodeView {
           this._popUpManager.close('hamburger-menu');
         },
       },
+      ...(figureType === 'table'
+        ? [
+          {
+            id: 'apply-style',
+            label: 'Apply Style',
+            icon: 'style',
+            action: (anchor?: HTMLElement) =>
+              this.openTableStylePicker(anchor),
+            disabled:
+              this.getTablePos() === null || !this.getTableStylePlugin(),
+          },
+        ]
+        : []),
       {
         id: 'choose-file',
         label: 'Choose File',
@@ -408,10 +423,16 @@ export class EnhancedTableFigureView implements NodeView {
     ];
 
     // If this is a table figure, restrict to only the requested subset of items
-    const figureType = this.node.attrs.figureType;
     let menuItems: MenuItemConfig[] = fullMenuItems;
     if (figureType === 'table') {
-      const allowed = new Set(['insert-above', 'insert-below', 'add-notes', 'delete-notes', 'delete']);
+      const allowed = new Set([
+        'insert-above',
+        'insert-below',
+        'apply-style',
+        'add-notes',
+        'delete-notes',
+        'delete',
+      ]);
       menuItems = fullMenuItems.filter((it) => allowed.has(it.id));
     }
 
@@ -419,6 +440,64 @@ export class EnhancedTableFigureView implements NodeView {
       autoDismiss: true,
       anchor: this._handleController.selectHandle,
     });
+  }
+
+  private getTableStylePlugin() {
+    return this.view.state.plugins?.find(
+      (plugin) =>
+        typeof (plugin as unknown as { openTableStylePicker?: unknown })
+          .openTableStylePicker === 'function'
+    ) as unknown as
+      | {
+        openTableStylePicker: (options: {
+          anchor: HTMLElement;
+          getTablePos: () => number | null;
+          onClose?: () => void;
+          onSelect?: () => void;
+          view: EditorView;
+        }) => PopUpHandle | null;
+      }
+      | undefined;
+  }
+
+  private getTablePos(): number | null {
+    if (typeof this.node.descendants !== 'function') {
+      return null;
+    }
+
+    let tableOffset: number | null = null;
+    this.node.descendants((node, pos) => {
+      if (node.type.spec.tableRole === 'table') {
+        tableOffset = pos;
+        return false;
+      }
+      return tableOffset === null;
+    });
+
+    return tableOffset === null ? null : this.getPos() + 1 + tableOffset;
+  }
+
+  private openTableStylePicker(anchor?: HTMLElement): void {
+    const plugin = this.getTableStylePlugin();
+    if (!anchor || !plugin) {
+      return;
+    }
+
+    this._stylePicker?.close(undefined);
+    const picker = plugin.openTableStylePicker({
+      anchor,
+      getTablePos: () => this.getTablePos(),
+      onClose: () => {
+        this._stylePicker = undefined;
+        this._popUpManager.close('hamburger-menu');
+      },
+      onSelect: () => this.view.focus(),
+      view: this.view,
+    });
+
+    if (picker) {
+      this._stylePicker = picker;
+    }
   }
 
   private handleNotesClick(e: Event): void {
@@ -745,10 +824,14 @@ export class EnhancedTableFigureView implements NodeView {
   deselectNode(): void {
     this.dom.setAttribute('data-active', 'false'); // NOSONAR
     this._popUpManager.close('inline-editor');
+    this._stylePicker?.close(undefined);
+    this._stylePicker = undefined;
     this.dom.classList.remove('ProseMirror-selectednode');
   }
 
   destroy(): void {
+    this._stylePicker?.close(undefined);
+    this._stylePicker = undefined;
     this._popUpManager.closeAll();
     this._handleController.destroy();
   }
