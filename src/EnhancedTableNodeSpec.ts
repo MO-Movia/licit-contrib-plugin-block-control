@@ -3,7 +3,10 @@ import type { NodeSpec } from 'prosemirror-model';
 export const enhancedTableFigureBodyNodeSpec: NodeSpec = {
   group: 'block',
   selectable: false,
-  content: 'block+', // This will allow your table node from the table plugin.
+  // An EIC body owns exactly one payload: either its table or its image block.
+  // Preventing a second block stops Enter from creating a paragraph beside
+  // that payload. The isolated notes node below protects the adjacent boundary.
+  content: 'block',
   parseDOM: [{ tag: "div[data-type='enhanced-table-figure-body']" }],
   toDOM() {
     return [
@@ -21,6 +24,8 @@ export const enhancedTableFigureBodyNodeSpec: NodeSpec = {
 export const enhancedTableFigureNotesNodeSpec: NodeSpec = {
   group: 'block',
   content: 'paragraph+',
+  // Keep ordinary join/lift commands from crossing the body/notes boundary.
+  isolating: true,
   attrs: {
     styleName: { default: 'Normal' },
   },

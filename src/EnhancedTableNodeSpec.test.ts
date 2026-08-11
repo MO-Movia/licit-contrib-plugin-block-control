@@ -28,11 +28,15 @@ describe('Enhanced Table Figure Node Specs', () => {
     });
 
     it('has correct content expression', () => {
-      expect(enhancedTableFigureBodyNodeSpec.content).toBe('block+');
+      expect(enhancedTableFigureBodyNodeSpec.content).toBe('block');
     });
 
     it('is not selectable as a wrapper node', () => {
       expect(enhancedTableFigureBodyNodeSpec.selectable).toBe(false);
+    });
+
+    it('isolates notes from the body boundary', () => {
+      expect(enhancedTableFigureNotesNodeSpec.isolating).toBe(true);
     });
   });
 
