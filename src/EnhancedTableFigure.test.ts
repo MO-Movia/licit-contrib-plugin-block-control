@@ -186,15 +186,15 @@ describe('EnhancedTableFigure', () => {
     ][0];
 
     expect(commands[' Table']).toEqual({ options: undefined, type: 'table' });
-    expect(commands[' Table with Landscape']).toEqual({
+    expect(commands[' Landscape Table']).toEqual({
       options: { withLandscapeSection: true },
       type: 'table',
     });
-    expect(commands[' Figure with Landscape']).toEqual({
+    expect(commands[' Landscape Figure']).toEqual({
       options: { withLandscapeSection: true },
       type: 'image-upload',
     });
-    expect(commands[' Insert image from computer']).toEqual({
+    expect(commands[' Image']).toEqual({
       options: undefined,
       type: 'image-upload',
     });

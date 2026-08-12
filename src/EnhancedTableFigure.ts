@@ -90,13 +90,13 @@ export class EnhancedTableFigure extends Plugin {
       '[exposure] Insert Enhanced Table-Figure': [
         {
           ' Table': new EnhancedTableCommands('table'),
-          ' Table with Landscape': new EnhancedTableCommands('table', {
+          ' Landscape Table': new EnhancedTableCommands('table', {
             withLandscapeSection: true,
           }),
-          ' Figure with Landscape': new ImageUploadCommand({
+          'Landscape Figure': new ImageUploadCommand({
             withLandscapeSection: true,
           }),
-          ' Insert image from computer': new ImageUploadCommand()
+          ' Image': new ImageUploadCommand()
         },
       ],
     };
