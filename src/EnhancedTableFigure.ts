@@ -93,7 +93,7 @@ export class EnhancedTableFigure extends Plugin {
           ' Landscape Table': new EnhancedTableCommands('table', {
             withLandscapeSection: true,
           }),
-          'Landscape Figure': new ImageUploadCommand({
+          ' Landscape Figure': new ImageUploadCommand({
             withLandscapeSection: true,
           }),
           ' Image': new ImageUploadCommand()
