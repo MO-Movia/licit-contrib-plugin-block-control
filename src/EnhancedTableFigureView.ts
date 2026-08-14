@@ -310,12 +310,7 @@ export class EnhancedTableFigureView implements NodeView {
     const commandRegistry = new FigureCommandRegistry(this.getPos(), this.node, this.view);
 
     // Determine if notes can be added
-    let notesExists = false;
-    for (const [child] of this.iterChildren(this.node)) {
-      if (child.type.name === 'enhanced_table_figure_notes') {
-        notesExists = true;
-      }
-    }
+    const notesExists = this.hasNotes();
 
     const canAddNotes =
       !notesExists &&
@@ -463,6 +458,15 @@ export class EnhancedTableFigureView implements NodeView {
       autoDismiss: true,
       anchor: this._handleController.selectHandle,
     });
+  }
+
+  private hasNotes(): boolean {
+    for (const [child] of this.iterChildren(this.node)) {
+      if (child.type.name === 'enhanced_table_figure_notes') {
+        return true;
+      }
+    }
+    return false;
   }
 
   private handleNotesClick(e: Event): void {
