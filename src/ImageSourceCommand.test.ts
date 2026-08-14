@@ -49,6 +49,13 @@ describe('ImageSourceCommand', () => {
           toDOM: () => ['img', 0],
           parseDOM: [{ tag: 'img' }],
         },
+        enhanced_table_figure_image: {
+          content: 'inline?',
+          group: 'block',
+          isolating: true,
+          toDOM: () => ['div', { class: 'figure-image' }, 0],
+          parseDOM: [{ tag: 'div.figure-image' }],
+        },
         enhanced_table_figure: {
           content: 'enhanced_table_figure_body enhanced_table_figure_capco',
           group: 'block',
@@ -60,14 +67,27 @@ describe('ImageSourceCommand', () => {
           parseDOM: [{ tag: 'div.figure' }],
         },
         enhanced_table_figure_body: {
-          content: 'block+',
+          content:
+            '(enhanced_table_figure_table | enhanced_table_figure_image)',
           toDOM: () => ['div', { class: 'figure-body' }, 0],
           parseDOM: [{ tag: 'div.figure-body' }],
+        },
+        enhanced_table_figure_table: {
+          content: 'table',
+          group: 'block',
+          toDOM: () => ['div', { class: 'figure-table' }, 0],
+          parseDOM: [{ tag: 'div.figure-table' }],
         },
         enhanced_table_figure_capco: {
           content: 'text*',
           toDOM: () => ['div', { class: 'figure-capco' }, 0],
           parseDOM: [{ tag: 'div.figure-capco' }],
+        },
+        table: {
+          group: 'block',
+          tableRole: 'table',
+          toDOM: () => ['table'],
+          parseDOM: [{ tag: 'table' }],
         },
         landscape_section: {
           content: 'block+',
@@ -234,7 +254,9 @@ describe('ImageSourceCommand', () => {
 
       expect(dispatch).toHaveBeenCalled();
       expect(insertedBody.type.name).toBe('enhanced_table_figure_body');
-      expect(insertedBody.firstChild.type.name).toBe('paragraph');
+      expect(insertedBody.firstChild.type.name).toBe(
+        'enhanced_table_figure_image'
+      );
       expect(insertedBody.firstChild.firstChild.type.name).toBe('image');
       expect(hideCursorPlaceholder).toHaveBeenCalledWith(view.state);
       expect(view.focus).toHaveBeenCalled();
@@ -251,7 +273,12 @@ describe('ImageSourceCommand', () => {
       const insertedNode = tr.doc.child(1);
       expect(insertedNode.type.name).toBe('landscape_section');
       expect(insertedNode.firstChild.type.name).toBe('enhanced_table_figure');
-      expect(insertedNode.firstChild.firstChild.firstChild.type.name).toBe('paragraph');
+      expect(insertedNode.firstChild.firstChild.firstChild.type.name).toBe(
+        'enhanced_table_figure_image'
+      );
+      expect(
+        insertedNode.firstChild.firstChild.firstChild.firstChild.type.name
+      ).toBe('image');
     });
 
     it('should not insert landscape image figure inside existing landscape section', () => {

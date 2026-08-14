@@ -1,7 +1,15 @@
 import { Schema, DOMParser, Node as ProseMirrorNode } from 'prosemirror-model';
-import { EditorState, TextSelection, Transaction } from 'prosemirror-state';
+import { EditorState, NodeSelection, TextSelection, Transaction } from 'prosemirror-state';
 import { Transform } from 'prosemirror-transform';
-import { EnhancedTableCommands, addNotesCommand, deleteNotesCommand, removeEmptyNotesCommand } from './EnhancedTableCommands';
+import {
+    EnhancedTableCommands,
+    addNotesCommand,
+    convertEnhancedTableFigureToLandscape,
+    convertEnhancedTableFigureToPortrait,
+    deleteNotesCommand,
+    isEnhancedTableFigureInLandscape,
+    removeEmptyNotesCommand,
+} from './EnhancedTableCommands';
 import { schema as basicSchema } from 'prosemirror-schema-basic';
 import { doc, p } from 'jest-prosemirror';
 
@@ -15,7 +23,14 @@ const nodes = basicSchema.spec.nodes.append({
         parseDOM: [{ tag: 'div' }],
     },
     enhanced_table_figure_body: {
+        content: 'enhanced_table_figure_table',
+        toDOM: () => ['div', 0],
+        parseDOM: [{ tag: 'div' }],
+    },
+    enhanced_table_figure_table: {
         content: 'table',
+        group: 'block',
+        isolating: true,
         toDOM: () => ['div', 0],
         parseDOM: [{ tag: 'div' }],
     },
@@ -30,6 +45,7 @@ const nodes = basicSchema.spec.nodes.append({
         parseDOM: [{ tag: 'div' }],
     },
     landscape_section: {
+        attrs: { class: { default: 'section-landscape' } },
         content: 'block+',
         group: 'block',
         toDOM: () => ['section', { class: 'section-landscape' }, 0],
@@ -57,6 +73,38 @@ const nodes = basicSchema.spec.nodes.append({
 });
 
 const schema = new Schema({ nodes, marks: basicSchema.spec.marks });
+
+function eicTable(tableNode: ProseMirrorNode) {
+    return schema.nodes.enhanced_table_figure_table.create({}, tableNode);
+}
+
+function createEicFigureNode(figureType = 'table') {
+    const tableNode = schema.nodes.table.createAndFill();
+    const bodyNode = schema.nodes.enhanced_table_figure_body.create(
+        {},
+        eicTable(tableNode)
+    );
+    const capcoNode = schema.nodes.enhanced_table_figure_capco.create(
+        {},
+        schema.text('CAPCO')
+    );
+    return schema.nodes.enhanced_table_figure.create(
+        { figureType },
+        [bodyNode, capcoNode]
+    );
+}
+
+function findNodePosition(docNode: ProseMirrorNode, typeName: string): number {
+    let foundPos = -1;
+    docNode.descendants((node, pos) => {
+        if (node.type.name === typeName) {
+            foundPos = pos;
+            return false;
+        }
+        return true;
+    });
+    return foundPos;
+}
 
 describe('EnhancedTableCommands', () => {
     let command: EnhancedTableCommands;
@@ -103,6 +151,9 @@ describe('EnhancedTableCommands', () => {
         const insertedNode = tr.doc.child(1);
         expect(insertedNode.type.name).toBe('landscape_section');
         expect(insertedNode.firstChild.type.name).toBe('enhanced_table_figure');
+        const tablePayload = insertedNode.firstChild.firstChild.firstChild;
+        expect(tablePayload.type.name).toBe('enhanced_table_figure_table');
+        expect(tablePayload.firstChild.type.name).toBe('table');
     });
 
     test('landscape table command is disabled inside existing landscape section', () => {
@@ -163,6 +214,126 @@ describe('EnhancedTableCommands', () => {
     });
 });
 
+describe('EIC landscape conversion', () => {
+    test('wraps a portrait EIC in a landscape section at the same document position', () => {
+        const figure = createEicFigureNode();
+        const before = schema.nodes.paragraph.create({}, schema.text('Before'));
+        const after = schema.nodes.paragraph.create({}, schema.text('After'));
+        const state = EditorState.create({
+            doc: schema.nodes.doc.create({}, [before, figure, after]),
+            schema,
+        });
+        const figurePos = findNodePosition(state.doc, 'enhanced_table_figure');
+
+        expect(isEnhancedTableFigureInLandscape(state.doc, figurePos)).toBe(false);
+
+        const tr = convertEnhancedTableFigureToLandscape(
+            state.tr,
+            schema,
+            figurePos
+        );
+        const landscape = tr.doc.child(1);
+        const convertedFigurePos = findNodePosition(
+            tr.doc,
+            'enhanced_table_figure'
+        );
+
+        expect(landscape.type.name).toBe('landscape_section');
+        expect(landscape.firstChild.eq(figure)).toBe(true);
+        expect(isEnhancedTableFigureInLandscape(tr.doc, convertedFigurePos)).toBe(true);
+        expect(tr.selection).toBeInstanceOf(NodeSelection);
+        expect((tr.selection as NodeSelection).node.type.name).toBe(
+            'enhanced_table_figure'
+        );
+    });
+
+    test('removes an otherwise empty landscape section around an EIC', () => {
+        const figure = createEicFigureNode('figure');
+        const landscape = schema.nodes.landscape_section.create(
+            { class: 'custom-landscape' },
+            figure
+        );
+        const state = EditorState.create({
+            doc: schema.nodes.doc.create({}, landscape),
+            schema,
+        });
+        const figurePos = findNodePosition(state.doc, 'enhanced_table_figure');
+
+        const tr = convertEnhancedTableFigureToPortrait(state.tr, figurePos);
+
+        expect(tr.doc.childCount).toBe(1);
+        expect(tr.doc.firstChild.eq(figure)).toBe(true);
+        expect(tr.doc.firstChild.attrs.figureType).toBe('figure');
+        expect(tr.selection).toBeInstanceOf(NodeSelection);
+    });
+
+    test('keeps landscape siblings and moves the EIC after their section', () => {
+        const figure = createEicFigureNode();
+        const before = schema.nodes.paragraph.create({}, schema.text('Before'));
+        const after = schema.nodes.paragraph.create({}, schema.text('After'));
+        const landscape = schema.nodes.landscape_section.create(
+            { class: 'custom-landscape' },
+            [before, figure, after]
+        );
+        const state = EditorState.create({
+            doc: schema.nodes.doc.create({}, landscape),
+            schema,
+        });
+        const figurePos = findNodePosition(state.doc, 'enhanced_table_figure');
+
+        const tr = convertEnhancedTableFigureToPortrait(state.tr, figurePos);
+        const remainingLandscape = tr.doc.firstChild;
+
+        expect(tr.doc.childCount).toBe(2);
+        expect(remainingLandscape.type.name).toBe('landscape_section');
+        expect(remainingLandscape.attrs.class).toBe('custom-landscape');
+        expect(remainingLandscape.childCount).toBe(2);
+        expect(remainingLandscape.child(0).textContent).toBe('Before');
+        expect(remainingLandscape.child(1).textContent).toBe('After');
+        expect(tr.doc.child(1).eq(figure)).toBe(true);
+        expect(
+            isEnhancedTableFigureInLandscape(
+                tr.doc,
+                findNodePosition(tr.doc, 'enhanced_table_figure')
+            )
+        ).toBe(false);
+    });
+
+    test('does not convert an EIC that is already in the requested orientation', () => {
+        const figure = createEicFigureNode();
+        const portraitState = EditorState.create({
+            doc: schema.nodes.doc.create({}, figure),
+            schema,
+        });
+        const portraitPos = findNodePosition(
+            portraitState.doc,
+            'enhanced_table_figure'
+        );
+        const portraitTr = convertEnhancedTableFigureToPortrait(
+            portraitState.tr,
+            portraitPos
+        );
+
+        const landscape = schema.nodes.landscape_section.create({}, figure);
+        const landscapeState = EditorState.create({
+            doc: schema.nodes.doc.create({}, landscape),
+            schema,
+        });
+        const landscapePos = findNodePosition(
+            landscapeState.doc,
+            'enhanced_table_figure'
+        );
+        const landscapeTr = convertEnhancedTableFigureToLandscape(
+            landscapeState.tr,
+            schema,
+            landscapePos
+        );
+
+        expect(portraitTr.steps).toHaveLength(0);
+        expect(landscapeTr.steps).toHaveLength(0);
+    });
+});
+
 function createStateInsideLandscapeSection(): EditorState {
     const docNode = schema.nodes.doc.create({}, [
         schema.nodes.landscape_section.create({}, [
@@ -183,7 +354,7 @@ describe('addNotesCommand', () => {
 
     beforeEach(() => {
         const tableNode = schema.nodes.table.createAndFill();
-        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, tableNode);
+        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, eicTable(tableNode));
         const capcoNode = schema.nodes.enhanced_table_figure_capco.create({}, schema.text('Footer'));
         const figureNode = schema.nodes.enhanced_table_figure.create({}, [bodyNode, capcoNode]);
 
@@ -204,7 +375,7 @@ describe('addNotesCommand', () => {
         const notesParagraph = schema.nodes.paragraph.create({}, schema.text('Note'));
         const notesNode = schema.nodes.enhanced_table_figure_notes.create({}, notesParagraph);
         const tableNode = schema.nodes.table.createAndFill();
-        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, tableNode);
+        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, eicTable(tableNode));
         const capcoNode = schema.nodes.enhanced_table_figure_capco.create({}, schema.text('Footer'));
         const figureNode = schema.nodes.enhanced_table_figure.create({}, [bodyNode, notesNode, capcoNode]);
 
@@ -233,7 +404,7 @@ describe('deleteNotesCommand', () => {
 
     beforeEach(() => {
         const tableNode = schema.nodes.table.createAndFill();
-        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, tableNode);
+        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, eicTable(tableNode));
         const notesParagraph = schema.nodes.paragraph.create({}, schema.text('Note'));
         const notesNode = schema.nodes.enhanced_table_figure_notes.create({}, notesParagraph);
         const capcoNode = schema.nodes.enhanced_table_figure_capco.create({}, schema.text('Footer'));
@@ -255,7 +426,7 @@ describe('deleteNotesCommand', () => {
 
     test('returns original tr when notes are not present', () => {
         const tableNode = schema.nodes.table.createAndFill();
-        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, tableNode);
+        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, eicTable(tableNode));
         const capcoNode = schema.nodes.enhanced_table_figure_capco.create({}, schema.text('Footer'));
         const figureNode = schema.nodes.enhanced_table_figure.create({}, [bodyNode, capcoNode]);
 
@@ -280,7 +451,7 @@ describe('deleteNotesCommand', () => {
 describe('removeEmptyNotesCommand', () => {
     const createStateWithNotes = (noteText = '\u200B') => {
         const tableNode = schema.nodes.table.createAndFill();
-        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, tableNode);
+        const bodyNode = schema.nodes.enhanced_table_figure_body.create({}, eicTable(tableNode));
         const notesParagraph = schema.nodes.paragraph.create(
             {},
             noteText ? schema.text(noteText) : undefined

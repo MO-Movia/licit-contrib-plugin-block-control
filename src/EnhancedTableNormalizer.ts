@@ -3,7 +3,9 @@ import { Transaction } from 'prosemirror-state';
 import {
   ENHANCED_TABLE_FIGURE,
   ENHANCED_TABLE_FIGURE_BODY,
+  ENHANCED_TABLE_FIGURE_IMAGE,
   ENHANCED_TABLE_FIGURE_NOTES,
+  ENHANCED_TABLE_FIGURE_TABLE,
 } from './Constants';
 
 type FigureReplacement = {
@@ -22,9 +24,10 @@ export function normalizeLegacyEnhancedTableFigureBodies(
   tr: Transaction,
   schema: Schema
 ): Transaction {
-  const paragraphType = schema.nodes.paragraph;
+  const eicImageType = schema.nodes[ENHANCED_TABLE_FIGURE_IMAGE];
+  const eicTableType = schema.nodes[ENHANCED_TABLE_FIGURE_TABLE];
   const notesType = schema.nodes[ENHANCED_TABLE_FIGURE_NOTES];
-  if (!paragraphType || !notesType) {
+  if (!eicImageType || !eicTableType || !notesType) {
     return tr;
   }
 
@@ -34,7 +37,12 @@ export function normalizeLegacyEnhancedTableFigureBodies(
       return true;
     }
 
-    const replacement = normalizeFigure(node, paragraphType, notesType);
+    const replacement = normalizeFigure(
+      node,
+      eicImageType,
+      eicTableType,
+      notesType
+    );
     if (replacement) {
       replacements.push({ node, pos, replacement });
     }
@@ -51,7 +59,8 @@ export function normalizeLegacyEnhancedTableFigureBodies(
 
 function normalizeFigure(
   figure: ProseMirrorNode,
-  paragraphType,
+  eicImageType,
+  eicTableType,
   notesType
 ): ProseMirrorNode | null {
   const children = getChildren(figure);
@@ -62,7 +71,11 @@ function normalizeFigure(
     return null;
   }
 
-  const normalized = normalizeBody(children[bodyIndex], paragraphType);
+  const normalized = normalizeBody(
+    children[bodyIndex],
+    eicImageType,
+    eicTableType
+  );
   if (!normalized.changed) {
     return null;
   }
@@ -104,15 +117,18 @@ function normalizeFigure(
   );
 }
 
-function normalizeBody(body: ProseMirrorNode, paragraphType): NormalizedBody {
-  let changed = false;
-  const bodyChildren = getChildren(body).map((child) => {
-    if (child.type.name === 'image' && child.isInline) {
-      changed = true;
-      return paragraphType.create({}, child);
-    }
-    return child;
-  });
+function normalizeBody(
+  body: ProseMirrorNode,
+  eicImageType,
+  eicTableType
+): NormalizedBody {
+  const legacyChildren = getChildren(body);
+  const bodyChildren = legacyChildren.map((child) =>
+    normalizePayload(child, eicImageType, eicTableType)
+  );
+  let changed = bodyChildren.some(
+    (child, index) => child !== legacyChildren[index]
+  );
 
   const primary = bodyChildren[0];
   const extras = bodyChildren.slice(1);
@@ -148,19 +164,43 @@ function getChildren(node: ProseMirrorNode): ProseMirrorNode[] {
 }
 
 function isPayloadBlock(node: ProseMirrorNode): boolean {
-  if (node.type.spec.tableRole === 'table' || node.type.name === 'image') {
-    return true;
+  return (
+    node.type.spec.tableRole === 'table' ||
+    node.type.name === ENHANCED_TABLE_FIGURE_IMAGE ||
+    node.type.name === ENHANCED_TABLE_FIGURE_TABLE ||
+    getLegacyImage(node) !== null
+  );
+}
+
+function normalizePayload(
+  node: ProseMirrorNode,
+  eicImageType,
+  eicTableType
+): ProseMirrorNode {
+  const image = getLegacyImage(node);
+  if (image) {
+    return eicImageType.create({}, image);
   }
 
-  let containsImage = false;
-  node.descendants((child) => {
-    if (child.type.name === 'image') {
-      containsImage = true;
-      return false;
-    }
-    return !containsImage;
-  });
-  return containsImage;
+  return node.type.spec.tableRole === 'table'
+    ? eicTableType.create({}, node)
+    : node;
+}
+
+function getLegacyImage(node: ProseMirrorNode): ProseMirrorNode | null {
+  if (node.type.name === 'image') {
+    return node;
+  }
+
+  if (
+    node.type.name === 'paragraph' &&
+    node.childCount === 1 &&
+    node.firstChild?.type.name === 'image'
+  ) {
+    return node.firstChild;
+  }
+
+  return null;
 }
 
 function isRecoverableParagraph(node: ProseMirrorNode): boolean {

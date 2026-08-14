@@ -9,7 +9,10 @@ import {
 } from './CursorPlaceholderPlugin';
 import { UICommand } from '@modusoperandi/licit-doc-attrs-step';
 import { createPopUp, PopUpHandle } from '@modusoperandi/licit-ui-commands';
-import { LANDSCAPE_SECTION } from './Constants';
+import {
+  ENHANCED_TABLE_FIGURE_IMAGE,
+  LANDSCAPE_SECTION,
+} from './Constants';
 
 import type { ImageProps } from './Types';
 
@@ -39,9 +42,10 @@ export function insertEnhancedImageFigure(
 
   // Create the body that contains an image.
   const bodyType = schema.nodes.enhanced_table_figure_body;
+  const eicImageType = schema.nodes[ENHANCED_TABLE_FIGURE_IMAGE];
   const imageNodeType = schema.nodes['image'];
   const paragraphType = schema.nodes.paragraph;
-  if (!(bodyType && imageNodeType)) {
+  if (!(bodyType && eicImageType && imageNodeType && paragraphType)) {
     return tr;
   }
   const imageAttrs = {
@@ -51,13 +55,8 @@ export function insertEnhancedImageFigure(
     cropData: null,
   };
   const imageNode = imageNodeType.create(imageAttrs, null);
-  const bodyContentNode = imageNodeType.isInline
-    ? paragraphType?.create({}, imageNode)
-    : imageNode;
-  if (!bodyContentNode) {
-    return tr;
-  }
-  const bodyNode = bodyType.create({}, Fragment.from(bodyContentNode));
+  const eicImageNode = eicImageType.create({}, imageNode);
+  const bodyNode = bodyType.create({}, eicImageNode);
 
   // No notes by default.
   // Create a blank CAPCO (footer) node.
@@ -80,7 +79,7 @@ export function insertEnhancedImageFigure(
   tr = tr.insert(from, insertNode);
 
   // Insert a new paragraph after the figure.
-  const paragraphNode = schema.nodes.paragraph.createAndFill();
+  const paragraphNode = paragraphType.createAndFill();
   if (paragraphNode) {
     const after = from + insertNode.nodeSize;
     tr = tr.insert(after, paragraphNode);

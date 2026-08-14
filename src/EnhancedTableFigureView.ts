@@ -2,7 +2,14 @@ import * as React from 'react';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorView, NodeView } from 'prosemirror-view';
 import { TextSelection } from 'prosemirror-state';
-import { addNotesCommand, deleteNotesCommand } from './EnhancedTableCommands';
+import {
+  addNotesCommand,
+  convertEnhancedTableFigureToLandscape,
+  convertEnhancedTableFigureToPortrait,
+  deleteNotesCommand,
+  isEnhancedTableFigureInLandscape,
+} from './EnhancedTableCommands';
+import { LANDSCAPE_SECTION } from './Constants';
 import { atAnchorTopCenter, createPopUp, PopUpHandle, uuid } from '@modusoperandi/licit-ui-commands';
 import { ImageViewer } from './ui/ImageViewer';
 import { CropImagePopup, CropDataPropValue } from './ui/CropImagePopup';
@@ -313,6 +320,34 @@ export class EnhancedTableFigureView implements NodeView {
     const canAddNotes =
       !notesExists &&
       (this.node.attrs.figureType === 'table' || this.node.attrs.figureType === 'figure');
+    const isEic =
+      this.node.attrs.figureType === 'table' ||
+      this.node.attrs.figureType === 'figure';
+    const hasLandscapeSchema = Boolean(
+      this.view.state.schema.nodes[LANDSCAPE_SECTION]
+    );
+    const isInsideLandscape =
+      isEic &&
+      isEnhancedTableFigureInLandscape(
+        this.view.state.doc,
+        this.getPos()
+      );
+    const orientationMenuItem: MenuItemConfig | null =
+      isEic && hasLandscapeSchema
+        ? {
+          id: isInsideLandscape
+            ? 'convert-to-portrait'
+            : 'convert-to-landscape',
+          label: isInsideLandscape
+            ? 'Convert To Portrait'
+            : 'Convert To Landscape',
+          icon: isInsideLandscape ? 'crop_portrait' : 'crop_landscape',
+          action: () => {
+            this.handleOrientationConversion(!isInsideLandscape);
+            this._popUpManager.close('hamburger-menu');
+          },
+        }
+        : null;
 
     const fullMenuItems: MenuItemConfig[] = [
       {
@@ -333,6 +368,7 @@ export class EnhancedTableFigureView implements NodeView {
           this._popUpManager.close('hamburger-menu');
         },
       },
+      ...(orientationMenuItem ? [orientationMenuItem] : []),
       {
         id: 'choose-file',
         label: 'Choose File',
@@ -411,7 +447,15 @@ export class EnhancedTableFigureView implements NodeView {
     const figureType = this.node.attrs.figureType;
     let menuItems: MenuItemConfig[] = fullMenuItems;
     if (figureType === 'table') {
-      const allowed = new Set(['insert-above', 'insert-below', 'add-notes', 'delete-notes', 'delete']);
+      const allowed = new Set([
+        'insert-above',
+        'insert-below',
+        'convert-to-landscape',
+        'convert-to-portrait',
+        'add-notes',
+        'delete-notes',
+        'delete',
+      ]);
       menuItems = fullMenuItems.filter((it) => allowed.has(it.id));
     }
 
@@ -431,6 +475,21 @@ export class EnhancedTableFigureView implements NodeView {
     e.preventDefault();
     const { state, dispatch } = this.view;
     dispatch(deleteNotesCommand(state.tr, this.getPos()));
+  }
+
+  private handleOrientationConversion(toLandscape: boolean): void {
+    const { state, dispatch } = this.view;
+    const tr = toLandscape
+      ? convertEnhancedTableFigureToLandscape(
+        state.tr,
+        state.schema,
+        this.getPos()
+      )
+      : convertEnhancedTableFigureToPortrait(state.tr, this.getPos());
+
+    if (tr.steps.length) {
+      dispatch(tr);
+    }
   }
 
   private handleMaximizeClick(e: Event): void {
@@ -586,7 +645,8 @@ export class EnhancedTableFigureView implements NodeView {
 
   private findImagePath(figurePos: number): number | null {
     // Find the path to the image node within the figure
-    // Structure: enhanced_table_figure > enhanced_table_figure_body (paragraph) > image
+    // Current structure: figure > body > EIC image block > image. The
+    // recursive lookup also supports legacy direct and paragraph images.
     let imagePath = null;
 
     for (const [child, childOffset] of this.iterChildren(this.node)) {

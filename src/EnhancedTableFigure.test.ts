@@ -1,4 +1,5 @@
-import { Schema } from 'prosemirror-model';
+import { DOMParser as ProseMirrorDOMParser, Fragment, Schema } from 'prosemirror-model';
+import { GapCursor } from 'prosemirror-gapcursor';
 import {
   EnhancedTableCommands,
   removeEmptyNotesCommand,
@@ -47,6 +48,19 @@ describe('EnhancedTableFigure', () => {
           toDOM: () => ['p', 0],
         },
         text: { group: 'inline' },
+        image: {
+          attrs: { src: { default: '' } },
+          group: 'inline',
+          inline: true,
+          parseDOM: [{ tag: 'img' }],
+          toDOM: () => ['img'],
+        },
+        table: {
+          group: 'block',
+          tableRole: 'table',
+          parseDOM: [{ tag: 'table' }],
+          toDOM: () => ['table'],
+        },
       },
     });
 
@@ -174,8 +188,115 @@ describe('EnhancedTableFigure', () => {
 
     expect(schema.nodes.enhanced_table_figure).toBeDefined();
     expect(schema.nodes.enhanced_table_figure_body).toBeDefined();
+    expect(schema.nodes.enhanced_table_figure_image).toBeDefined();
+    expect(schema.nodes.enhanced_table_figure_table).toBeDefined();
     expect(schema.nodes.enhanced_table_figure_notes).toBeDefined();
     expect(schema.nodes.enhanced_table_figure_capco).toBeDefined();
+
+    const image = schema.nodes.image.create({ src: 'figure.png' });
+    const eicImage = schema.nodes.enhanced_table_figure_image.create({}, image);
+    const table = schema.nodes.table.create();
+    const eicTable = schema.nodes.enhanced_table_figure_table.create({}, table);
+    const paragraph = schema.nodes.paragraph.create();
+    const bodyType = schema.nodes.enhanced_table_figure_body;
+
+    expect(bodyType.validContent(Fragment.from(eicImage))).toBe(true);
+    expect(bodyType.validContent(Fragment.from(eicTable))).toBe(true);
+    expect(bodyType.validContent(Fragment.from(table))).toBe(false);
+    expect(bodyType.validContent(Fragment.from(paragraph))).toBe(false);
+  });
+
+  it('initializes before the multimedia plugin registers its image node', () => {
+    const schemaWithoutImage = new Schema({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: { content: 'inline*', group: 'block' },
+        text: { group: 'inline' },
+        table: { group: 'block', tableRole: 'table' },
+      },
+    });
+    const { plugin } = getPluginSpec();
+
+    const blockControlSchema = plugin.getEffectiveSchema(schemaWithoutImage);
+
+    expect(blockControlSchema.nodes.image).toBeUndefined();
+    expect(blockControlSchema.nodes.enhanced_table_figure_image).toBeDefined();
+
+    const nodesWithRequiredImage = blockControlSchema.spec.nodes.append({
+      image: {
+        attrs: { src: {} },
+        group: 'inline',
+        inline: true,
+      },
+    });
+    const schemaAfterMultimedia = new Schema({
+      nodes: nodesWithRequiredImage,
+      marks: blockControlSchema.spec.marks,
+    });
+    const image = schemaAfterMultimedia.nodes.image.create({
+      src: 'registered-later.png',
+    });
+
+    expect(
+      schemaAfterMultimedia.nodes.enhanced_table_figure_image.validContent(
+        Fragment.from(image)
+      )
+    ).toBe(true);
+  });
+
+  it('parses a legacy direct EIC table into the dedicated table block', () => {
+    const { plugin } = getPluginSpec();
+    const schema = plugin.getEffectiveSchema(createBaseSchema());
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <div data-type="enhanced-table-figure">
+        <div data-type="enhanced-table-figure-body"><table></table></div>
+        <div data-type="enhanced-table-figure-capco">CAPCO</div>
+      </div>
+    `;
+
+    const parsed = ProseMirrorDOMParser.fromSchema(schema).parse(container);
+    const body = parsed.firstChild?.firstChild;
+
+    expect(body?.type.name).toBe('enhanced_table_figure_body');
+    expect(body?.firstChild?.type.name).toBe(
+      'enhanced_table_figure_table'
+    );
+    expect(body?.firstChild?.firstChild?.type.name).toBe('table');
+  });
+
+  it('rejects gap cursors between the EIC payload, notes, and CAPCO', () => {
+    const { plugin } = getPluginSpec();
+    const schema = plugin.getEffectiveSchema(createBaseSchema());
+    const table = schema.nodes.table.create();
+    const tablePayload = schema.nodes.enhanced_table_figure_table.create(
+      {},
+      table
+    );
+    const body = schema.nodes.enhanced_table_figure_body.create(
+      {},
+      tablePayload
+    );
+    const notes = schema.nodes.enhanced_table_figure_notes.create(
+      {},
+      schema.nodes.paragraph.create({}, schema.text('TBD'))
+    );
+    const capco = schema.nodes.enhanced_table_figure_capco.create(
+      {},
+      schema.text('CAPCO')
+    );
+    const figure = schema.nodes.enhanced_table_figure.create({}, [
+      body,
+      notes,
+      capco,
+    ]);
+    const doc = schema.nodes.doc.create({}, figure);
+    const afterBody = 1 + body.nodeSize;
+    const afterNotes = afterBody + notes.nodeSize;
+
+    expect(GapCursor.valid(doc.resolve(afterBody))).toBe(false);
+    expect(GapCursor.valid(doc.resolve(afterNotes))).toBe(false);
+    expect(GapCursor.valid(doc.resolve(0))).toBe(true);
   });
 
   it('registers table and image commands', () => {

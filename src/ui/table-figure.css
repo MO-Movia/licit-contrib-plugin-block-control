@@ -8,9 +8,13 @@
 }
 
 .enhanced-table-figure-capco {
+  box-sizing: border-box;
+  width: 100%;
   padding: 5px;
   font-size: 18px;
   color: green;
+  border: 1px solid black;
+  margin: 0;
 }
 
 /* Enhanced Table Figure Container */
@@ -32,8 +36,55 @@
 
 /* Remove spacing inside the content area */
 .enhanced-table-figure-content {
+  box-sizing: border-box;
+  width: 100%;
   padding: 0;
   margin: 0;
+}
+
+.enhanced-table-figure-body {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.enhanced-table-figure-table {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.enhanced-table-figure-table > .czi-table-control,
+.enhanced-table-figure-table > .tableWrapper {
+  width: 100%;
+  margin: 0;
+}
+
+/* EIC images use a dedicated block payload instead of a paragraph. Keeping
+ * both the payload and the existing image NodeView block-level avoids an
+ * inline baseline gap without changing ordinary images elsewhere. */
+.enhanced-table-figure-image {
+  display: block;
+  line-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.enhanced-table-figure-image > .molm-czi-image-view {
+  display: block;
+  line-height: 0;
+  margin: 0 !important;
+  vertical-align: top;
+}
+
+.enhanced-table-figure-image
+  > .molm-czi-image-view:not(.align-left):not(.align-center):not(
+    .align-right
+  ):not(.align-float-left):not(.align-float-right) {
+  text-align: left;
 }
 
 .has-hover-handle .handle-hidden-on-hover {

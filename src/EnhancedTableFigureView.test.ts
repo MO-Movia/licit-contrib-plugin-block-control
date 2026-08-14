@@ -4,7 +4,13 @@ import '@testing-library/jest-dom';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorView } from 'prosemirror-view';
 import { TextSelection } from 'prosemirror-state';
-import { addNotesCommand, deleteNotesCommand } from './EnhancedTableCommands';
+import {
+  addNotesCommand,
+  convertEnhancedTableFigureToLandscape,
+  convertEnhancedTableFigureToPortrait,
+  deleteNotesCommand,
+  isEnhancedTableFigureInLandscape,
+} from './EnhancedTableCommands';
 import { createPopUp } from '@modusoperandi/licit-ui-commands';
 import { EnhancedTableFigureView } from './EnhancedTableFigureView';
 
@@ -17,7 +23,10 @@ jest.mock('prosemirror-state', () => ({
 }));
 jest.mock('./EnhancedTableCommands', () => ({
   addNotesCommand: jest.fn(() => 'notes-transaction'),
+  convertEnhancedTableFigureToLandscape: jest.fn(),
+  convertEnhancedTableFigureToPortrait: jest.fn(),
   deleteNotesCommand: jest.fn(() => 'delete-notes-transaction'),
+  isEnhancedTableFigureInLandscape: jest.fn(() => false),
 }));
 jest.mock('@modusoperandi/licit-ui-commands', () => ({
   atAnchorTopCenter: jest.fn(),
@@ -49,6 +58,7 @@ type MockView = EditorView & {
       scrollIntoView: jest.Mock;
       setNodeMarkup: jest.Mock;
       setSelection: jest.Mock;
+      steps: unknown[];
     };
   };
 };
@@ -67,6 +77,7 @@ describe('EnhancedTableFigureView', () => {
       scrollIntoView: jest.fn(() => tr),
       setNodeMarkup: jest.fn(() => tr),
       setSelection: jest.fn(() => tr),
+      steps: [],
     };
     return tr;
   };
@@ -123,16 +134,22 @@ describe('EnhancedTableFigureView', () => {
     }>;
   };
 
-  const mockImageInFigure = (imageNode: { attrs: Record<string, unknown> }, nested = false) => {
+  const mockImageInFigure = (
+    imageNode: { attrs: Record<string, unknown> },
+    legacyDirect = false
+  ) => {
     const imageContent = createContentNode('image');
-    const nestedContent = createContentNode(
-      'wrapper',
-      [createContentNode('text', [], 2), imageContent],
-      4
+    const eicImageContent = createContentNode(
+      'enhanced_table_figure_image',
+      [imageContent],
+      3
     );
     const bodyNode = createContentNode(
       'enhanced_table_figure_body',
-      [createContentNode('text', [], 3), nested ? nestedContent : imageContent],
+      [
+        createContentNode('text', [], 3),
+        legacyDirect ? imageContent : eicImageContent,
+      ],
       6
     );
 
@@ -142,6 +159,7 @@ describe('EnhancedTableFigureView', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (isEnhancedTableFigureInLandscape as jest.Mock).mockReturnValue(false);
 
     const parentElement = document.createElement('section');
     const editorDom = document.createElement('div');
@@ -154,7 +172,12 @@ describe('EnhancedTableFigureView', () => {
       focus: jest.fn(),
       state: {
         doc: { content: { size: 100 }, nodeAt: jest.fn(), resolve: jest.fn((pos: number) => ({ pos })) },
-        schema: { nodes: { paragraph: { create: jest.fn(() => 'paragraph-node') } } },
+        schema: {
+          nodes: {
+            landscape_section: {},
+            paragraph: { create: jest.fn(() => 'paragraph-node') },
+          },
+        },
         tr: createMockTransaction(),
       },
     } as unknown as MockView;
@@ -201,10 +224,10 @@ describe('EnhancedTableFigureView', () => {
       const handle = view.dom.querySelector('.enhanced-table-figure-select-handle') as HTMLElement;
 
       fireEvent.click(handle);
-      expect(getLastPopUpCall()[1].menuItems).toHaveLength(4);
+      expect(getLastPopUpCall()[1].menuItems).toHaveLength(5);
 
       handle.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: ' ' }));
-      expect(getLastPopUpCall()[1].menuItems).toHaveLength(4);
+      expect(getLastPopUpCall()[1].menuItems).toHaveLength(5);
     });
   });
 
@@ -263,6 +286,7 @@ describe('EnhancedTableFigureView', () => {
       expect(menuItems.map((item) => item.id)).toEqual([
         'insert-above',
         'insert-below',
+        'convert-to-landscape',
         'choose-file',
         'paste-clipboard',
         'add-notes',
@@ -280,6 +304,37 @@ describe('EnhancedTableFigureView', () => {
 
       const menuItems = getLastPopUpCall()[1].menuItems as Array<{ id: string }>;
       expect(menuItems.find((item) => item.id === 'add-notes')).toBeUndefined();
+    });
+
+    it('shows exactly one conversion option based on landscape ancestry', () => {
+      let menuItems = openMenu();
+
+      expect(
+        menuItems.find((item) => item.id === 'convert-to-landscape')
+      ).toEqual(
+        expect.objectContaining({
+          icon: 'crop_landscape',
+          label: 'Convert To Landscape',
+        })
+      );
+      expect(
+        menuItems.find((item) => item.id === 'convert-to-portrait')
+      ).toBeUndefined();
+
+      (isEnhancedTableFigureInLandscape as jest.Mock).mockReturnValue(true);
+      menuItems = openMenu();
+
+      expect(
+        menuItems.find((item) => item.id === 'convert-to-landscape')
+      ).toBeUndefined();
+      expect(
+        menuItems.find((item) => item.id === 'convert-to-portrait')
+      ).toEqual(
+        expect.objectContaining({
+          icon: 'crop_portrait',
+          label: 'Convert To Portrait',
+        })
+      );
     });
   });
 
@@ -332,6 +387,38 @@ describe('EnhancedTableFigureView', () => {
       expect(mockView.dispatch).toHaveBeenCalledWith('delete-notes-transaction');
     });
 
+    it('converts the EIC to landscape or portrait from the single menu action', () => {
+      const landscapeTr = { steps: [{}] };
+      (convertEnhancedTableFigureToLandscape as jest.Mock).mockReturnValue(
+        landscapeTr
+      );
+      let menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'convert-to-landscape')?.action();
+
+      expect(convertEnhancedTableFigureToLandscape).toHaveBeenCalledWith(
+        mockView.state.tr,
+        mockView.state.schema,
+        10
+      );
+      expect(mockView.dispatch).toHaveBeenCalledWith(landscapeTr);
+
+      (isEnhancedTableFigureInLandscape as jest.Mock).mockReturnValue(true);
+      const portraitTr = { steps: [{}] };
+      (convertEnhancedTableFigureToPortrait as jest.Mock).mockReturnValue(
+        portraitTr
+      );
+      menuItems = openMenu();
+
+      menuItems.find((item) => item.id === 'convert-to-portrait')?.action();
+
+      expect(convertEnhancedTableFigureToPortrait).toHaveBeenCalledWith(
+        mockView.state.tr,
+        10
+      );
+      expect(mockView.dispatch).toHaveBeenCalledWith(portraitTr);
+    });
+
     it('opens crop and dispatches confirmed crop data', () => {
       const createPopUpMock = createPopUp as jest.Mock;
       mockNode.attrs.figureType = 'figure';
@@ -352,7 +439,7 @@ describe('EnhancedTableFigureView', () => {
       };
       cropProps.onConfirm(cropData);
 
-      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(15, null, {
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(16, null, {
         cropData,
         src: 'data:image/png;base64,original',
       });
@@ -388,7 +475,7 @@ describe('EnhancedTableFigureView', () => {
       expect(createPopUpMock.mock.calls).toHaveLength(callsBeforeCrop);
     });
 
-    it('resets direct and nested image crop data', () => {
+    it('resets legacy direct image crop data', () => {
       mockNode.attrs.figureType = 'figure';
       const imageNode = { attrs: { cropData: { left: 1 }, src: 'image-src' } };
       mockImageInFigure(imageNode, true);
@@ -396,7 +483,7 @@ describe('EnhancedTableFigureView', () => {
 
       menuItems.find((item) => item.id === 'reset-crop')?.action();
 
-      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(18, undefined, {
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(15, undefined, {
         cropData: null,
         src: 'image-src',
       });
@@ -465,7 +552,7 @@ describe('EnhancedTableFigureView', () => {
       expect(input.type).toBe('file');
       expect(input.accept).toBe('image/*');
       expect(click).toHaveBeenCalled();
-      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(15, undefined, {
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(16, undefined, {
         src: 'data:image/png;base64,new',
       });
     });
@@ -502,7 +589,7 @@ describe('EnhancedTableFigureView', () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(15, undefined, {
+      expect(mockView.state.tr.setNodeMarkup).toHaveBeenCalledWith(16, undefined, {
         src: 'data:image/png;base64,new',
       });
     });

@@ -5,12 +5,15 @@ import { EnhancedTableCommands, removeEmptyNotesCommand } from './EnhancedTableC
 import {
   enhancedTableFigureNodeSpec,
   enhancedTableFigureBodyNodeSpec,
+  enhancedTableFigureImageNodeSpec,
+  enhancedTableFigureTableNodeSpec,
   enhancedTableFigureNotesNodeSpec,
   enhancedTableFigureCapcoNodeSpec,
 } from './EnhancedTableNodeSpec';
 import {
   ENHANCED_TABLE_FIGURE_BODY, ENHANCED_TABLE_FIGURE, ENHANCED_TABLE_FIGURE_CAPCO,
-  ENHANCED_TABLE_FIGURE_NOTES
+  ENHANCED_TABLE_FIGURE_NOTES, ENHANCED_TABLE_FIGURE_IMAGE,
+  ENHANCED_TABLE_FIGURE_TABLE
 } from './Constants';
 import { ImageUploadCommand } from './ImageUploadCommand';
 import { EnhancedTableFigureView } from './EnhancedTableFigureView';
@@ -72,6 +75,8 @@ export class EnhancedTableFigure extends Plugin {
     const nodes = schema.spec.nodes.append({
       [ENHANCED_TABLE_FIGURE]: enhancedTableFigureNodeSpec,
       [ENHANCED_TABLE_FIGURE_BODY]: enhancedTableFigureBodyNodeSpec,
+      [ENHANCED_TABLE_FIGURE_IMAGE]: enhancedTableFigureImageNodeSpec,
+      [ENHANCED_TABLE_FIGURE_TABLE]: enhancedTableFigureTableNodeSpec,
       [ENHANCED_TABLE_FIGURE_NOTES]: enhancedTableFigureNotesNodeSpec,
       [ENHANCED_TABLE_FIGURE_CAPCO]: enhancedTableFigureCapcoNodeSpec,
 
