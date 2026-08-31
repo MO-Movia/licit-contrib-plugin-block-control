@@ -1,9 +1,57 @@
 import type { NodeSpec } from 'prosemirror-model';
+
+// Dedicated block payload for an EIC image. The existing image remains its
+// child so the multimedia plugin keeps ownership of rendering, resizing,
+// cropping, and image attributes without introducing a paragraph. Referencing
+// the inline group lets this schema load before the multimedia plugin registers
+// the concrete image type. Insertion and legacy migration always populate the
+// payload with exactly one image.
+export const enhancedTableFigureImageNodeSpec: NodeSpec = {
+  group: 'block',
+  content: 'inline?',
+  isolating: true,
+  selectable: false,
+  parseDOM: [{ tag: "div[data-type='enhanced-table-figure-image']" }],
+  toDOM() {
+    return [
+      'div',
+      {
+        'data-type': 'enhanced-table-figure-image',
+        class: 'enhanced-table-figure-image',
+      },
+      0,
+    ];
+  },
+};
+
+// Dedicated block payload for an EIC table. The core table node remains the
+// child, so Licit continues to own table editing while ordinary tables keep
+// their existing schema and behavior.
+export const enhancedTableFigureTableNodeSpec: NodeSpec = {
+  group: 'block',
+  content: 'table',
+  isolating: true,
+  selectable: false,
+  parseDOM: [{ tag: "div[data-type='enhanced-table-figure-table']" }],
+  toDOM() {
+    return [
+      'div',
+      {
+        'data-type': 'enhanced-table-figure-table',
+        class: 'enhanced-table-figure-table',
+      },
+      0,
+    ];
+  },
+};
 // Body spec – where the table (or multimedia) is inserted.
 export const enhancedTableFigureBodyNodeSpec: NodeSpec = {
   group: 'block',
   selectable: false,
-  content: 'block+', // This will allow your table node from the table plugin.
+  // An EIC body owns exactly one payload: either its table or its image block.
+  // Preventing a second block stops Enter from creating a paragraph beside
+  // that payload. The isolated notes node below protects the adjacent boundary.
+  content: '(enhanced_table_figure_table | enhanced_table_figure_image)',
   parseDOM: [{ tag: "div[data-type='enhanced-table-figure-body']" }],
   toDOM() {
     return [
@@ -21,6 +69,8 @@ export const enhancedTableFigureBodyNodeSpec: NodeSpec = {
 export const enhancedTableFigureNotesNodeSpec: NodeSpec = {
   group: 'block',
   content: 'paragraph+',
+  // Keep ordinary join/lift commands from crossing the body/notes boundary.
+  isolating: true,
   attrs: {
     styleName: { default: 'Normal' },
   },
@@ -81,6 +131,10 @@ export const enhancedTableFigureCapcoNodeSpec: NodeSpec = {
 export const enhancedTableFigureNodeSpec: NodeSpec = {
   group: 'block',
   selectable: true,
+  // Structural boundaries inside an EIC are not editing positions. Without
+  // this override, ArrowUp can place a gap cursor between body/notes/CAPCO and
+  // Enter inserts the schema's default text block (another CAPCO node).
+  allowGapCursor: false,
   content:
     'enhanced_table_figure_body enhanced_table_figure_notes? enhanced_table_figure_capco',
   isolating: true,
@@ -91,6 +145,7 @@ export const enhancedTableFigureNodeSpec: NodeSpec = {
     maximized: { default: false },
     width: { default: 600 },
     height: { default: 300 },
+    dirty: { default: false },
   },
   parseDOM: [
     {
@@ -102,6 +157,7 @@ export const enhancedTableFigureNodeSpec: NodeSpec = {
           figureType: dataset.figureType || 'table',
           orientation: dataset.orientation || 'portrait',
           maximized: dataset.maximized === 'true',
+          dirty: dataset.dirty === 'true',
         };
       },
     },

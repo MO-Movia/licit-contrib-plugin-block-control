@@ -1,4 +1,6 @@
 export const ENHANCED_TABLE_FIGURE_BODY = 'enhanced_table_figure_body';
+export const ENHANCED_TABLE_FIGURE_IMAGE = 'enhanced_table_figure_image';
+export const ENHANCED_TABLE_FIGURE_TABLE = 'enhanced_table_figure_table';
 export const ENHANCED_TABLE_FIGURE_NOTES = 'enhanced_table_figure_notes';
 export const ENHANCED_TABLE_FIGURE_CAPCO = 'enhanced_table_figure_capco';
 export const ENHANCED_TABLE_FIGURE = 'enhanced_table_figure';
