@@ -1,5 +1,7 @@
 import {
   enhancedTableFigureBodyNodeSpec,
+  enhancedTableFigureImageNodeSpec,
+  enhancedTableFigureTableNodeSpec,
   enhancedTableFigureNotesNodeSpec,
   enhancedTableFigureCapcoNodeSpec,
   enhancedTableFigureNodeSpec,
@@ -28,11 +30,63 @@ describe('Enhanced Table Figure Node Specs', () => {
     });
 
     it('has correct content expression', () => {
-      expect(enhancedTableFigureBodyNodeSpec.content).toBe('block+');
+      expect(enhancedTableFigureBodyNodeSpec.content).toBe(
+        '(enhanced_table_figure_table | enhanced_table_figure_image)'
+      );
     });
 
     it('is not selectable as a wrapper node', () => {
       expect(enhancedTableFigureBodyNodeSpec.selectable).toBe(false);
+    });
+
+    it('isolates notes from the body boundary', () => {
+      expect(enhancedTableFigureNotesNodeSpec.isolating).toBe(true);
+    });
+  });
+
+  describe('enhancedTableFigureImageNodeSpec', () => {
+    it('is an isolated block supporting one existing image', () => {
+      expect(enhancedTableFigureImageNodeSpec.group).toBe('block');
+      expect(enhancedTableFigureImageNodeSpec.content).toBe('inline?');
+      expect(enhancedTableFigureImageNodeSpec.isolating).toBe(true);
+      expect(enhancedTableFigureImageNodeSpec.selectable).toBe(false);
+    });
+
+    it('returns the dedicated EIC image DOM wrapper', () => {
+      expect(enhancedTableFigureImageNodeSpec.toDOM!(mockNode)).toEqual([
+        'div',
+        {
+          'data-type': 'enhanced-table-figure-image',
+          class: 'enhanced-table-figure-image',
+        },
+        0,
+      ]);
+      expect(enhancedTableFigureImageNodeSpec.parseDOM![0].tag).toBe(
+        "div[data-type='enhanced-table-figure-image']"
+      );
+    });
+  });
+
+  describe('enhancedTableFigureTableNodeSpec', () => {
+    it('is an isolated block supporting one core table', () => {
+      expect(enhancedTableFigureTableNodeSpec.group).toBe('block');
+      expect(enhancedTableFigureTableNodeSpec.content).toBe('table');
+      expect(enhancedTableFigureTableNodeSpec.isolating).toBe(true);
+      expect(enhancedTableFigureTableNodeSpec.selectable).toBe(false);
+    });
+
+    it('returns the dedicated EIC table DOM wrapper', () => {
+      expect(enhancedTableFigureTableNodeSpec.toDOM!(mockNode)).toEqual([
+        'div',
+        {
+          'data-type': 'enhanced-table-figure-table',
+          class: 'enhanced-table-figure-table',
+        },
+        0,
+      ]);
+      expect(enhancedTableFigureTableNodeSpec.parseDOM![0].tag).toBe(
+        "div[data-type='enhanced-table-figure-table']"
+      );
     });
   });
 
@@ -114,6 +168,10 @@ describe('Enhanced Table Figure Node Specs', () => {
   });
 
   describe('enhancedTableFigureNodeSpec', () => {
+    it('does not allow gap cursors at internal EIC boundaries', () => {
+      expect(enhancedTableFigureNodeSpec.allowGapCursor).toBe(false);
+    });
+
     it('returns correct DOM output with all attrs set', () => {
       const mockNode = {
         attrs: {
@@ -162,35 +220,37 @@ describe('Enhanced Table Figure Node Specs', () => {
       ]);
     });
 
-    it('getAttrs parses all attributes correctly', () => {
-      const tag = enhancedTableFigureNodeSpec.parseDOM![0];
-      const dom = document.createElement('div');
-      dom.setAttribute('data-id', 'id123');
-      dom.setAttribute('data-figure-type', 'figure');
-      dom.setAttribute('data-orientation', 'landscape');
-      dom.setAttribute('data-maximized', 'true');
+  it('getAttrs parses all attributes correctly', () => {
+    const tag = enhancedTableFigureNodeSpec.parseDOM![0];
+    const dom = document.createElement('div');
+    dom.setAttribute('data-id', 'id123');
+    dom.setAttribute('data-figure-type', 'figure');
+    dom.setAttribute('data-orientation', 'landscape');
+    dom.setAttribute('data-maximized', 'true');
 
-      const attrs = tag.getAttrs!(dom);
-      expect(attrs).toEqual({
-        id: 'id123',
-        figureType: 'figure',
-        orientation: 'landscape',
-        maximized: true,
-      });
+    const attrs = tag.getAttrs!(dom);
+    expect(attrs).toEqual({
+      id: 'id123',
+      dirty: false,
+      figureType: 'figure',
+      orientation: 'landscape',
+      maximized: true,
     });
+  });
 
-    it('getAttrs falls back to defaults', () => {
-      const tag = enhancedTableFigureNodeSpec.parseDOM![0];
-      const dom = document.createElement('div');
+  it('getAttrs falls back to defaults', () => {
+    const tag = enhancedTableFigureNodeSpec.parseDOM![0];
+    const dom = document.createElement('div');
 
-      const attrs = tag.getAttrs!(dom);
-      expect(attrs).toEqual({
-        id: '',
-        figureType: 'table',
-        orientation: 'portrait',
-        maximized: false,
-      });
+    const attrs = tag.getAttrs!(dom);
+    expect(attrs).toEqual({
+      id: '',
+      dirty: false,
+      figureType: 'table',
+      orientation: 'portrait',
+      maximized: false,
     });
+  });
 
     it('includes content expression', () => {
       expect(enhancedTableFigureNodeSpec.content).toBe(
